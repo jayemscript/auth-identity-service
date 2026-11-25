@@ -21,7 +21,7 @@ Example response shape:
 
 ```json
 {
-  "message": "You are signed in.",
+  "message": "Welcome, Alex Rivera! You are signed in.",
   "data": {
     "sessionId": "session-id",
     "accessToken": "signed-access-token",

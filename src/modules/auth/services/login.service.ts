@@ -11,6 +11,10 @@ import { auth } from '../../../auth/better-auth';
 import { normalizeIdentifier } from '../../../common/security';
 import { AuthTokenPairResponseDto } from '../dtos';
 
+export interface LoginExecutionResult extends AuthTokenPairResponseDto {
+  userName: string;
+}
+
 @Injectable()
 export class LoginService {
   constructor(
@@ -22,7 +26,7 @@ export class LoginService {
     identifier: string;
     password: string;
     appId: string;
-  }): Promise<AuthTokenPairResponseDto> {
+  }): Promise<LoginExecutionResult> {
     const appSlug = input.appId;
     const identifier = normalizeIdentifier(input.identifier);
     const signInUsername = (
@@ -181,6 +185,7 @@ export class LoginService {
       iat: now,
     };
     return Object.assign(new AuthTokenPairResponseDto(), {
+      userName: result.user.name,
       sessionId,
       accessToken: await this.jwt.signAsync(
         { ...claims, typ: 'access' },

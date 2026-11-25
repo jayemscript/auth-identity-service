@@ -22,7 +22,7 @@ describe('LoginService', () => {
     jest.clearAllMocks();
     process.env.JWT_SECRET = 'unit-test-secret';
     signIn = jest.spyOn(auth.api, 'signInEmail').mockResolvedValue({
-      user: { id: 'user-1' },
+      user: { id: 'user-1', name: 'Alex Rivera' },
       token: 'framework-token',
     } as never);
     dataSource.query.mockResolvedValue([{ id: 'session-1' }]);
@@ -57,6 +57,7 @@ describe('LoginService', () => {
     });
     expect(result).toMatchObject({
       sessionId: 'session-1',
+      userName: 'Alex Rivera',
       accessToken: 'access-token',
       refreshToken: 'refresh-token',
     });

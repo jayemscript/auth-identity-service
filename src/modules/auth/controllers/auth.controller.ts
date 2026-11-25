@@ -37,8 +37,11 @@ export class AuthController {
       throw new BadRequestException(
         'Choose an app by including its slug in the X-App-Id header.',
       );
-    const result = await this.login.execute({ ...body, appId });
-    return successResponse('You are signed in.', result);
+    const { userName, ...tokens } = await this.login.execute({
+      ...body,
+      appId,
+    });
+    return successResponse(`Welcome, ${userName}! You are signed in.`, tokens);
   }
 
   @Post('verify')
