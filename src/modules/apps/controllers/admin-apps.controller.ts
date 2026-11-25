@@ -11,6 +11,7 @@ import { SuperAdminGuard } from '../../auth/guards/superadmin.guard';
 import { ApiKeyGuard } from '../../auth/guards/api-key.guard';
 import { ManageAppsService } from '../services/manage-apps.service';
 import { CreateAppDto, UpdateAppDto } from '../dtos';
+import { successResponse } from '../../../common';
 
 @Controller('v1/admin/apps')
 @UseGuards(ApiKeyGuard, SuperAdminGuard)
@@ -18,19 +19,30 @@ export class AdminAppsController {
   constructor(private readonly apps: ManageAppsService) {}
 
   @Post()
-  create(@Body() body: CreateAppDto) {
-    return this.apps.execute({ action: 'create', body: { ...body } });
+  async create(@Body() body: CreateAppDto) {
+    const result: unknown = await this.apps.execute({
+      action: 'create',
+      body: { ...body },
+    });
+    return successResponse('The app was created successfully.', result);
   }
   @Get()
-  list() {
-    return this.apps.execute({ action: 'list' });
+  async list() {
+    const result: unknown = await this.apps.execute({ action: 'list' });
+    return successResponse('Here are the registered apps.', result);
   }
   @Get(':appId')
-  get(@Param('appId') appId: string) {
-    return this.apps.execute({ action: 'get', appId });
+  async get(@Param('appId') appId: string) {
+    const result: unknown = await this.apps.execute({ action: 'get', appId });
+    return successResponse('The app details are ready.', result);
   }
   @Patch(':appId')
-  update(@Param('appId') appId: string, @Body() body: UpdateAppDto) {
-    return this.apps.execute({ action: 'update', appId, body: { ...body } });
+  async update(@Param('appId') appId: string, @Body() body: UpdateAppDto) {
+    const result: unknown = await this.apps.execute({
+      action: 'update',
+      appId,
+      body: { ...body },
+    });
+    return successResponse('The app was updated successfully.', result);
   }
 }

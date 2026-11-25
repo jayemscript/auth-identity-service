@@ -20,7 +20,10 @@ export class SuperAdminGuard implements CanActivate {
     const request = context.switchToHttp().getRequest<Request>();
     const token = request.header('authorization')?.replace(/^Bearer\s+/i, '');
     const appSlug = request.header('x-app-id');
-    if (!token || !appSlug) throw new UnauthorizedException();
+    if (!token || !appSlug)
+      throw new UnauthorizedException(
+        'Sign in to the admin app with a SuperAdmin account to continue.',
+      );
     let claims: { sub: string; sid: string; aud: string; typ: string };
     try {
       claims = await this.jwt.verifyAsync(token, {
@@ -29,10 +32,14 @@ export class SuperAdminGuard implements CanActivate {
         issuer: 'auth-identity-service',
       });
     } catch {
-      throw new UnauthorizedException('Invalid access token');
+      throw new UnauthorizedException(
+        'Your sign-in has expired or is no longer valid. Please sign in again.',
+      );
     }
     if (claims.typ !== 'access' || claims.aud !== appSlug)
-      throw new UnauthorizedException('Invalid access token');
+      throw new UnauthorizedException(
+        'Your sign-in has expired or is no longer valid. Please sign in again.',
+      );
     const [adminApp] = await this.dataSource.query(
       `SELECT value->>'slug' AS slug FROM system.settings WHERE key = 'administration.app_slug' AND application_id IS NULL`,
     );
@@ -46,7 +53,9 @@ export class SuperAdminGuard implements CanActivate {
       [claims.sub, claims.sid, appSlug],
     );
     if (!user || !adminApp || adminApp.slug !== appSlug)
-      throw new ForbiddenException('SuperAdmin access required');
+      throw new ForbiddenException(
+        'This account is not allowed to manage the service. Sign in with a SuperAdmin account.',
+      );
     return true;
   }
 }

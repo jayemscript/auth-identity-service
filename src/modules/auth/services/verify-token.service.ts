@@ -75,7 +75,9 @@ export class VerifyTokenService {
           : null,
       });
     } catch {
-      throw new ServiceUnavailableException('Session state unavailable');
+      throw new ServiceUnavailableException(
+        'We could not check this session right now. Please try again shortly.',
+      );
     }
   }
 }

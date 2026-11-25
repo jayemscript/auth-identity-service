@@ -16,16 +16,17 @@ export class UserSessionGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context
-      .switchToHttp()
-      .getRequest<
-        Request & {
-          identity?: { userId: string; sessionId: string; appId: string };
-        }
-      >();
+    const request = context.switchToHttp().getRequest<
+      Request & {
+        identity?: { userId: string; sessionId: string; appId: string };
+      }
+    >();
     const token = request.header('authorization')?.replace(/^Bearer\s+/i, '');
     const appSlug = request.header('x-app-id');
-    if (!token || !appSlug) throw new UnauthorizedException();
+    if (!token || !appSlug)
+      throw new UnauthorizedException(
+        'Sign in to this app and include your access token to continue.',
+      );
     try {
       const claims = await this.jwt.verifyAsync<{
         sub: string;
@@ -58,7 +59,9 @@ export class UserSessionGuard implements CanActivate {
       };
       return true;
     } catch {
-      throw new UnauthorizedException('Invalid access token');
+      throw new UnauthorizedException(
+        'Your sign-in has expired or is no longer valid. Please sign in again.',
+      );
     }
   }
 }

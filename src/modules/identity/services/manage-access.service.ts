@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { UserAccessRepository } from '../repositories/user-access.repository';
+import { UserConfigResponseDto } from '../dtos';
 
 @Injectable()
 export class ManageAccessService {
@@ -28,7 +29,7 @@ export class ManageAccessService {
         body.sessionLimitOverride !== null &&
         body.sessionLimitOverride < 1
       )
-        throw new ConflictException('Session limit must be positive');
+        throw new ConflictException('The session limit must be at least one.');
       const rows = await this.dataSource.query(
         `UPDATE identity.user_configs SET can_create_users = COALESCE($2, can_create_users),
           session_limit_override = CASE WHEN $3::boolean THEN $4::integer ELSE session_limit_override END
@@ -40,14 +41,21 @@ export class ManageAccessService {
           body.sessionLimitOverride ?? null,
         ],
       );
-      if (!rows.length) throw new NotFoundException('User config not found');
-      return rows[0];
+      if (!rows.length)
+        throw new NotFoundException(
+          'We could not find settings for this user.',
+        );
+      return Object.assign(new UserConfigResponseDto(), {
+        userId: rows[0].user_id,
+        canCreateUsers: rows[0].can_create_users,
+        sessionLimitOverride: rows[0].session_limit_override,
+      });
     }
     const [app] = await this.dataSource.query(
       `SELECT id, slug FROM apps.applications WHERE id::text = $1 OR slug = $1`,
       [input.appId],
     );
-    if (!app) throw new NotFoundException('App not found');
+    if (!app) throw new NotFoundException('We could not find this app.');
     if (input.action === 'grant') {
       return this.userAccess.grant({
         userId: input.userId,
@@ -65,7 +73,7 @@ export class ManageAccessService {
       );
       if (app.slug === admin?.slug && superAdmin?.is_superadmin)
         throw new ForbiddenException(
-          'Cannot revoke the SuperAdmin admin-app grant',
+          'The SuperAdmin account must keep access to the admin app.',
         );
       const grant = await tx.query(
         `UPDATE identity.user_application_access SET status = 'revoked', revoked_at = now() WHERE user_id = $1 AND application_id = $2 AND status = 'active' RETURNING id`,

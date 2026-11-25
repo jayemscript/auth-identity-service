@@ -28,10 +28,14 @@ export class RefreshSessionService {
         issuer: 'auth-identity-service',
       });
     } catch {
-      throw new UnauthorizedException('Invalid refresh token');
+      throw new UnauthorizedException(
+        'This refresh token is invalid or expired. Please sign in again.',
+      );
     }
     if (claims.typ !== 'refresh' || claims.aud !== appSlug)
-      throw new UnauthorizedException('Invalid refresh token');
+      throw new UnauthorizedException(
+        'This refresh token is invalid or expired. Please sign in again.',
+      );
     const now = new Date();
     const [{ generation, idleExpiry, hardExpiry }] =
       await this.dataSource.transaction(async (tx) => {
@@ -51,7 +55,9 @@ export class RefreshSessionService {
           new Date(session.idleExpiry) <= now ||
           new Date(session.hardExpiry) <= now
         ) {
-          throw new UnauthorizedException('Invalid refresh token');
+          throw new UnauthorizedException(
+            'This refresh token is no longer valid. Please sign in again.',
+          );
         }
         const settings = await tx.query(
           `SELECT key, value FROM system.settings WHERE application_id IS NULL OR application_id = $1 ORDER BY application_id NULLS FIRST`,
@@ -70,7 +76,8 @@ export class RefreshSessionService {
                 session.policy?.idleTimeoutSeconds ??
                   resolvedSettings.get('session.idle_timeout_seconds') ??
                   604800,
-              ) * 1000,
+              ) *
+                1000,
             new Date(session.hardExpiry).getTime(),
           ),
         );

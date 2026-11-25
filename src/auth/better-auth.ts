@@ -4,7 +4,12 @@ import { username } from 'better-auth/plugins';
 import { Pool } from 'pg';
 import { randomUUID } from 'node:crypto';
 import * as argon2 from 'argon2';
+import { config as loadEnv } from 'dotenv';
 import { bindBetterAuthToTypeOrmTransaction } from '../common/database';
+
+// Better Auth's pool is constructed during module evaluation, before Nest's
+// ConfigModule loads .env. Load it here so the pool captures the DB settings.
+loadEnv();
 
 const pool = new Pool({
   host: process.env.DB_HOST,

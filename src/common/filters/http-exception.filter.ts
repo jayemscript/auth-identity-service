@@ -10,6 +10,19 @@ import {
 import { Request, Response } from 'express';
 import { ErrorResponseDto } from '../dtos/error-response.dto';
 
+function errorLabel(status: number): string {
+  const labels: Record<number, string> = {
+    [HttpStatus.BAD_REQUEST]: 'Bad Request',
+    [HttpStatus.UNAUTHORIZED]: 'Unauthorized',
+    [HttpStatus.FORBIDDEN]: 'Forbidden',
+    [HttpStatus.NOT_FOUND]: 'Not Found',
+    [HttpStatus.CONFLICT]: 'Conflict',
+    [HttpStatus.UNPROCESSABLE_ENTITY]: 'Unprocessable Request',
+    [HttpStatus.SERVICE_UNAVAILABLE]: 'Service Unavailable',
+  };
+  return labels[status] ?? 'Request Failed';
+}
+
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(HttpExceptionFilter.name);
@@ -20,22 +33,37 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const response = ctx.getResponse<Response>();
 
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
-    let message = 'Internal server error';
-    let error = 'Internal Server Error';
+    let message = 'Something went wrong. Please try again later.';
+    let error = errorLabel(status);
+    let code: string | undefined;
 
     if (exception instanceof HttpException) {
       status = exception.getStatus();
       const exceptionResponse = exception.getResponse();
-      message = (exceptionResponse as any).message || exception.message;
-      error = (exceptionResponse as any).error || exception.name;
-    } else if (exception instanceof Error) {
-      message = exception.message;
+      if (typeof exceptionResponse === 'string') {
+        message = exceptionResponse;
+      } else if (typeof exceptionResponse === 'object' && exceptionResponse) {
+        const details = exceptionResponse as {
+          message?: string | string[];
+          error?: string;
+          code?: string;
+        };
+        if (Array.isArray(details.message)) message = details.message.join(' ');
+        else if (details.message) message = details.message;
+        else
+          message = `${errorLabel(status)}. Please check your request and try again.`;
+        error = details.error || errorLabel(status);
+        code = details.code;
+      } else {
+        message = `${errorLabel(status)}. Please check your request and try again.`;
+      }
     }
 
     const errorResponse: ErrorResponseDto = {
       statusCode: status,
       message,
       error,
+      ...(code ? { code } : {}),
       timestamp: new Date().toISOString(),
       path: request.url,
     };

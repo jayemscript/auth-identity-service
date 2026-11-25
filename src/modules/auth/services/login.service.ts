@@ -1,6 +1,8 @@
 import {
   ConflictException,
+  ForbiddenException,
   Injectable,
+  ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -30,21 +32,46 @@ export class LoginService {
         }) => Promise<Awaited<ReturnType<typeof auth.api.signInEmail>>>;
       }
     ).signInUsername;
-    const result = identifier.includes('@')
-      ? await auth.api.signInEmail({
-          body: { email: identifier, password: input.password },
-        })
-      : await signInUsername({
-          body: { username: identifier, password: input.password },
-        });
+    let result: Awaited<ReturnType<typeof auth.api.signInEmail>>;
+    try {
+      result = identifier.includes('@')
+        ? await auth.api.signInEmail({
+            body: { email: identifier, password: input.password },
+          })
+        : await signInUsername({
+            body: { username: identifier, password: input.password },
+          });
+    } catch (error) {
+      const failure = error as {
+        status?: unknown;
+        statusCode?: unknown;
+        body?: { code?: unknown };
+      };
+      if (
+        failure?.statusCode === 401 ||
+        failure?.status === 'UNAUTHORIZED' ||
+        failure?.body?.code === 'INVALID_EMAIL_OR_PASSWORD'
+      ) {
+        throw new UnauthorizedException(
+          'The email, username, or password is incorrect.',
+        );
+      }
+      throw new ServiceUnavailableException(
+        'We could not sign you in right now. Please try again shortly.',
+      );
+    }
     if (!result?.user || !result?.token)
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException(
+        'The email, username, or password is incorrect.',
+      );
     const [frameworkSession] = await this.dataSource.query(
       `SELECT id FROM auth.sessions WHERE token = $1`,
       [result.token],
     );
     if (!frameworkSession)
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException(
+        'The email, username, or password is incorrect.',
+      );
     const sessionId = frameworkSession.id as string;
 
     const nowDate = new Date();
@@ -59,10 +86,18 @@ export class LoginService {
           `SELECT id, policy FROM apps.applications WHERE slug = $1 AND status = 'active' FOR UPDATE`,
           [input.appId],
         );
+        if (!app)
+          throw new UnauthorizedException(
+            'This app could not be found or is currently unavailable.',
+          );
         const [grant] = await tx.query(
           `SELECT id FROM identity.user_application_access WHERE user_id = $1 AND application_id = $2 AND status = 'active' FOR UPDATE`,
-          [result.user.id, app?.id],
+          [result.user.id, app.id],
         );
+        if (!grant)
+          throw new ForbiddenException(
+            "This account isn't registered for this app. Please register through the app or contact its administrator for access.",
+          );
         const [config] = await tx.query(
           `SELECT status, is_banned, ban_expires_at, session_limit_override FROM identity.user_configs WHERE user_id = $1`,
           [result.user.id],
@@ -78,15 +113,15 @@ export class LoginService {
           ]),
         );
         if (
-          !app ||
-          !grant ||
           !config ||
           config.status !== 'active' ||
           (config.is_banned &&
             (!config.ban_expires_at ||
               new Date(config.ban_expires_at) > nowDate))
         ) {
-          throw new UnauthorizedException('Invalid credentials');
+          throw new UnauthorizedException(
+            'This account is currently unavailable. Contact the app administrator for help.',
+          );
         }
         const cap = Number(
           config.session_limit_override ??
@@ -99,7 +134,11 @@ export class LoginService {
           [result.user.id, app.id],
         );
         if (count >= cap)
-          throw new ConflictException({ code: 'SESSION_LIMIT_REACHED' });
+          throw new ConflictException({
+            code: 'SESSION_LIMIT_REACHED',
+            message:
+              'You have reached the maximum number of active sessions for this app. End another session before signing in again.',
+          });
         const idleSeconds = Number(
           app.policy?.idleTimeoutSeconds ??
             resolvedSettings.get('session.idle_timeout_seconds') ??
@@ -118,10 +157,9 @@ export class LoginService {
         );
       });
     } catch (error) {
-      await this.dataSource.query(
-        `DELETE FROM auth.sessions WHERE id = $1`,
-        [sessionId],
-      );
+      await this.dataSource.query(`DELETE FROM auth.sessions WHERE id = $1`, [
+        sessionId,
+      ]);
       throw error;
     }
 

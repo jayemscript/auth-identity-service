@@ -56,7 +56,9 @@ export class RegisterUserService {
       [input.appSlug.trim().toLowerCase()],
     );
     if (!app.length || app[0].status !== 'active')
-      throw new ForbiddenException('Unknown or inactive app');
+      throw new ForbiddenException(
+        'This app could not be found or is currently unavailable.',
+      );
     const appPolicy = app[0].policy ?? {};
     const projectAndAppSettings = await manager.query(
       `SELECT key, value FROM system.settings WHERE application_id IS NULL OR application_id = $1 ORDER BY application_id NULLS FIRST`,
@@ -76,11 +78,15 @@ export class RegisterUserService {
       mode === 'disabled' ||
       (input.source === 'public_registration' && mode !== 'public')
     ) {
-      throw new ForbiddenException('Registration is disabled');
+      throw new ForbiddenException(
+        'Registration is not available for this app. Contact its administrator to request access.',
+      );
     }
     if (input.source === 'operator') {
       if (!input.actorId)
-        throw new ForbiddenException('An authorized actor is required');
+        throw new ForbiddenException(
+          'Sign in with an authorized account before creating a user.',
+        );
       const [actor] = await manager.query(
         `SELECT c.can_create_users, s.application_id FROM identity.user_configs c
          JOIN auth.sessions s ON s.user_id = c.user_id
@@ -89,7 +95,9 @@ export class RegisterUserService {
         [input.actorId, app[0].id],
       );
       if (!actor?.can_create_users)
-        throw new ForbiddenException('Actor cannot create users');
+        throw new ForbiddenException(
+          'Your account is not allowed to create users in this app.',
+        );
     }
     const verificationRequired = Boolean(
       appPolicy.emailVerificationRequired ??
@@ -101,7 +109,9 @@ export class RegisterUserService {
       input.verifiedEmail?.trim().toLowerCase() ===
         input.email.trim().toLowerCase();
     if (verificationRequired && !verified)
-      throw new ForbiddenException('Verified email assertion is required');
+      throw new ForbiddenException(
+        'This app requires a verified email address. Verify the email before registering.',
+      );
 
     try {
       const signUp = auth.api.signUpEmail as unknown as (args: {
@@ -129,12 +139,7 @@ export class RegisterUserService {
         await tx.query(
           `INSERT INTO identity.user_configs (id, user_id, creation_source, created_by_user_id, created_by_application_id)
            VALUES (gen_random_uuid(), $1, $2, $3, $4)`,
-          [
-            created.user.id,
-            input.source,
-            input.actorId ?? null,
-            app[0].id,
-          ],
+          [created.user.id, input.source, input.actorId ?? null, app[0].id],
         );
         await tx.query(
           `INSERT INTO identity.user_application_access (id, user_id, application_id, status, grant_source, granted_by_user_id)
@@ -152,9 +157,11 @@ export class RegisterUserService {
       });
     } catch (error) {
       if (isDuplicateIdentityError(error))
-        throw new ConflictException('Email or username already exists');
+        throw new ConflictException(
+          'An account with this email address or username already exists.',
+        );
       throw new UnprocessableEntityException(
-        'Unable to complete registration',
+        'We could not complete registration. Please check the details and try again.',
         { cause: error },
       );
     }

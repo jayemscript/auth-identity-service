@@ -2,6 +2,7 @@ import {
   Controller,
   Delete,
   Get,
+  NotFoundException,
   Param,
   Query,
   Req,
@@ -13,6 +14,7 @@ import { ApiKeyGuard } from '../guards/api-key.guard';
 import { ListSessionsService } from '../services/list-sessions.service';
 import { RevokeSessionsService } from '../services/revoke-sessions.service';
 import { ListSessionsQueryDto } from '../dtos';
+import { successResponse } from '../../../common';
 
 type UserRequest = Request & {
   identity: { userId: string; appId: string; sessionId: string };
@@ -27,22 +29,26 @@ export class SessionsController {
   ) {}
 
   @Get()
-  listOwned(
+  async listOwned(
     @Req() request: UserRequest,
     @Query() query: ListSessionsQueryDto,
   ) {
-    return this.list.execute({
+    const result = await this.list.execute({
       userId: request.identity.userId,
       appSlug: request.identity.appId,
       limit: query.limit,
       offset: query.offset,
       status: query.status,
     });
+    return successResponse('Here are your sessions.', result);
   }
 
   @Get(':sessionId')
-  getOwned(@Req() request: UserRequest, @Param('sessionId') sessionId: string) {
-    return this.list.execute({
+  async getOwned(
+    @Req() request: UserRequest,
+    @Param('sessionId') sessionId: string,
+  ) {
+    const result = await this.list.execute({
       userId: request.identity.userId,
       appSlug: request.identity.appId,
       limit: 1,
@@ -50,25 +56,42 @@ export class SessionsController {
       sessionId,
       status: 'all',
     });
+    if (!result[0])
+      throw new NotFoundException(
+        'We could not find this session in your account.',
+      );
+    return successResponse('Here are the session details.', result[0]);
   }
 
   @Delete()
-  revokeAll(@Req() request: UserRequest) {
-    return this.revoke.execute({
+  async revokeAll(@Req() request: UserRequest) {
+    const result = await this.revoke.execute({
       userId: request.identity.userId,
       appSlug: request.identity.appId,
     });
+    return successResponse(
+      result.revoked
+        ? 'You have been signed out from all sessions in this app.'
+        : 'You have no active sessions in this app.',
+      result,
+    );
   }
 
   @Delete(':sessionId')
-  revokeOne(
+  async revokeOne(
     @Req() request: UserRequest,
     @Param('sessionId') sessionId: string,
   ) {
-    return this.revoke.execute({
+    const result = await this.revoke.execute({
       userId: request.identity.userId,
       appSlug: request.identity.appId,
       sessionId,
     });
+    return successResponse(
+      result.revoked
+        ? 'The session has been ended.'
+        : 'No active session was found.',
+      result,
+    );
   }
 }

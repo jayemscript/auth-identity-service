@@ -18,6 +18,7 @@ import {
   RefreshTokenRequestDto,
   VerifyTokenRequestDto,
 } from '../dtos';
+import { successResponse } from '../../../common';
 
 @Controller('v1/auth')
 @UseGuards(ApiKeyGuard)
@@ -30,44 +31,59 @@ export class AuthController {
   ) {}
 
   @Post('login')
-  execute(
-    @Body() body: LoginRequestDto,
-    @Req() request: Request,
-  ) {
+  async execute(@Body() body: LoginRequestDto, @Req() request: Request) {
     const appId = request.header('x-app-id');
-    if (!appId) throw new BadRequestException('X-App-Id is required');
-    return this.login.execute({ ...body, appId });
+    if (!appId)
+      throw new BadRequestException(
+        'Choose an app by including its slug in the X-App-Id header.',
+      );
+    const result = await this.login.execute({ ...body, appId });
+    return successResponse('You are signed in.', result);
   }
 
   @Post('verify')
-  verify(
-    @Body() body: VerifyTokenRequestDto,
-    @Req() request: Request,
-  ) {
+  async verify(@Body() body: VerifyTokenRequestDto, @Req() request: Request) {
     const appSlug = request.header('x-app-id');
-    if (!appSlug) throw new BadRequestException('X-App-Id is required');
-    return this.verifyToken.execute({ ...body, appSlug });
+    if (!appSlug)
+      throw new BadRequestException(
+        'Choose an app by including its slug in the X-App-Id header.',
+      );
+    const result = await this.verifyToken.execute({ ...body, appSlug });
+    return successResponse(
+      result.active
+        ? 'This token is active.'
+        : 'This token is no longer active.',
+      result,
+    );
   }
 
   @Post('refresh')
-  refresh(@Body() body: RefreshTokenRequestDto, @Req() request: Request) {
+  async refresh(@Body() body: RefreshTokenRequestDto, @Req() request: Request) {
     const appSlug = request.header('x-app-id');
-    if (!appSlug) throw new BadRequestException('X-App-Id is required');
-    return this.refreshSession.execute(body.refreshToken, appSlug);
+    if (!appSlug)
+      throw new BadRequestException(
+        'Choose an app by including its slug in the X-App-Id header.',
+      );
+    const result = await this.refreshSession.execute(
+      body.refreshToken,
+      appSlug,
+    );
+    return successResponse('Your session has been refreshed.', result);
   }
 
   @Post('logout')
   @UseGuards(UserSessionGuard)
-  logout(
+  async logout(
     @Req()
     request: Request & {
       identity?: { userId: string; sessionId: string; appId: string };
     },
   ) {
-    return this.revokeSessions.execute({
+    const result = await this.revokeSessions.execute({
       userId: request.identity!.userId,
       appSlug: request.identity!.appId,
       sessionId: request.identity!.sessionId,
     });
+    return successResponse('You have been signed out.', result);
   }
 }

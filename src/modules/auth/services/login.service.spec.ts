@@ -1,4 +1,4 @@
-import { ConflictException } from '@nestjs/common';
+import { ConflictException, ForbiddenException } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 jest.mock('../../../auth/better-auth', () => ({
   auth: { api: { signInEmail: jest.fn() } },
@@ -63,6 +63,27 @@ describe('LoginService', () => {
     expect(result.sessionId).not.toBe('framework-token');
   });
 
+  it('returns a readable unauthorized error for invalid credentials', async () => {
+    signIn.mockRejectedValue({
+      status: 'UNAUTHORIZED',
+      statusCode: 401,
+      body: { code: 'INVALID_EMAIL_OR_PASSWORD' },
+    });
+
+    await expect(
+      service.execute({
+        identifier: 'person@example.com',
+        password: 'wrong-password',
+        appId: 'shop',
+      }),
+    ).rejects.toMatchObject({
+      status: 401,
+      response: {
+        message: 'The email, username, or password is incorrect.',
+      },
+    });
+  });
+
   it('removes the newly created framework session when the app limit is reached', async () => {
     tx.query.mockReset();
     tx.query
@@ -75,13 +96,51 @@ describe('LoginService', () => {
       ])
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([{ count: 1 }]);
-    await expect(
-      service.execute({
+    let thrown: unknown;
+    try {
+      await service.execute({
         identifier: 'person@example.com',
         password: 'password',
         appId: 'shop',
-      }),
-    ).rejects.toBeInstanceOf(ConflictException);
+      });
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toBeInstanceOf(ConflictException);
+    expect((thrown as ConflictException).getResponse()).toMatchObject({
+      code: 'SESSION_LIMIT_REACHED',
+      message:
+        'You have reached the maximum number of active sessions for this app. End another session before signing in again.',
+    });
+    expect(dataSource.query).toHaveBeenCalledWith(
+      'DELETE FROM auth.sessions WHERE id = $1',
+      ['session-1'],
+    );
+  });
+
+  it('explains when a valid account is not registered for the selected app', async () => {
+    tx.query.mockReset();
+    tx.query
+      .mockResolvedValueOnce([{ id: 'app-1', policy: {} }])
+      .mockResolvedValueOnce([]);
+
+    let thrown: unknown;
+    try {
+      await service.execute({
+        identifier: 'person@example.com',
+        password: 'password',
+        appId: 'mobile-app',
+      });
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).toBeInstanceOf(ForbiddenException);
+    expect((thrown as ForbiddenException).getStatus()).toBe(403);
+    expect((thrown as ForbiddenException).getResponse()).toMatchObject({
+      message:
+        "This account isn't registered for this app. Please register through the app or contact its administrator for access.",
+    });
     expect(dataSource.query).toHaveBeenCalledWith(
       'DELETE FROM auth.sessions WHERE id = $1',
       ['session-1'],

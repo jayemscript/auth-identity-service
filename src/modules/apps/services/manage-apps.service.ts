@@ -25,13 +25,15 @@ export class ManageAppsService {
         return await this.applications.create(body);
       } catch (error) {
         if ((error as { code?: string }).code === '23505')
-          throw new ConflictException('App slug already exists');
+          throw new ConflictException(
+            'An app with this slug already exists. Choose a different slug.',
+          );
         throw error;
       }
     }
     if (input.action === 'list') return this.applications.findAll();
     const existing = await this.applications.findByIdOrSlug(input.appId ?? '');
-    if (!existing) throw new NotFoundException('App not found');
+    if (!existing) throw new NotFoundException('We could not find this app.');
     if (input.action === 'get') return existing;
     const body = input.body ?? {};
     const [admin] = await this.dataSource.query(
@@ -39,7 +41,7 @@ export class ManageAppsService {
     );
     if (existing.slug === admin?.slug && body.status === 'disabled')
       throw new ForbiddenException(
-        'The designated admin app cannot be disabled',
+        'The admin app cannot be disabled because it is required to manage the service.',
       );
     const updated = await this.dataSource.transaction(async (tx) => {
       const updated = await this.applications.update(existing.id, body, tx);

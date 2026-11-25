@@ -13,6 +13,12 @@ export class UpdateUserConfigDto {
   sessionLimitOverride?: number | null;
 }
 
+export class UserConfigResponseDto {
+  userId!: string;
+  canCreateUsers!: boolean;
+  sessionLimitOverride!: number | null;
+}
+
 export class UserApplicationAccessResponseDto {
   id!: string;
   userId!: string;
