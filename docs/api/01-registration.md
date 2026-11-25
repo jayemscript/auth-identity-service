@@ -33,4 +33,4 @@ Example response:
 
 `POST {{baseUrl}}/v1/registration/internal`
 
-Use the same JSON body as public registration. Set `Authorization: Bearer {{accessToken}}` for an actor in the same app; the actor must have `canCreateUsers` enabled in their user config.
+Use the same JSON body as public registration. Set `Authorization: Bearer {{accessToken}}` for an actor in the same app; the actor must have `canCreateUsers` enabled in their user config. The token’s app must match `X-App-Id`, so a SuperAdmin token issued for `internal-admin` cannot be sent with another app’s slug; sign in to the target app with an authorized operator account instead. A mismatch returns `403 Forbidden` with code `TOKEN_APP_MISMATCH`.

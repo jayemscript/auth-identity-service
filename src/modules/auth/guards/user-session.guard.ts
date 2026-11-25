@@ -1,7 +1,9 @@
 import {
   CanActivate,
   ExecutionContext,
+  ForbiddenException,
   Injectable,
+  ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -27,8 +29,9 @@ export class UserSessionGuard implements CanActivate {
       throw new UnauthorizedException(
         'Sign in to this app and include your access token to continue.',
       );
+    let claims: { sub: string; sid: string; aud: string; typ: string };
     try {
-      const claims = await this.jwt.verifyAsync<{
+      claims = await this.jwt.verifyAsync<{
         sub: string;
         sid: string;
         aud: string;
@@ -38,9 +41,24 @@ export class UserSessionGuard implements CanActivate {
         algorithms: ['HS256'],
         issuer: 'auth-identity-service',
       });
-      if (claims.typ !== 'access' || claims.aud !== appSlug)
-        throw new Error('Invalid token');
-      const [session] = await this.dataSource.query(
+    } catch {
+      throw new UnauthorizedException(
+        'Your access token is invalid or expired. Please sign in again.',
+      );
+    }
+    if (claims.typ !== 'access')
+      throw new UnauthorizedException(
+        'Use an access token to continue. Refresh tokens cannot access this route.',
+      );
+    if (claims.aud !== appSlug)
+      throw new ForbiddenException({
+        code: 'TOKEN_APP_MISMATCH',
+        message: `This access token was issued for a different app. Use an access token issued for "${appSlug}".`,
+      });
+
+    let session: { user_id: string; slug: string } | undefined;
+    try {
+      [session] = await this.dataSource.query(
         `SELECT s.user_id AS user_id, a.slug FROM auth.sessions s JOIN apps.applications a ON a.id = s.application_id
          JOIN identity.user_configs c ON c.user_id = s.user_id
          JOIN identity.user_application_access g ON g.user_id = s.user_id AND g.application_id = a.id
@@ -50,18 +68,21 @@ export class UserSessionGuard implements CanActivate {
          AND g.status = 'active'`,
         [claims.sid, claims.sub],
       );
-      if (!session || session.slug !== appSlug)
-        throw new Error('Inactive token');
-      request.identity = {
-        userId: claims.sub,
-        sessionId: claims.sid,
-        appId: appSlug,
-      };
-      return true;
     } catch {
-      throw new UnauthorizedException(
-        'Your sign-in has expired or is no longer valid. Please sign in again.',
+      throw new ServiceUnavailableException(
+        'We could not verify your sign-in right now. Please try again shortly.',
       );
     }
+    if (!session || session.slug !== appSlug)
+      throw new UnauthorizedException(
+        'Your session has ended or is no longer active. Please sign in again.',
+      );
+
+    request.identity = {
+      userId: claims.sub,
+      sessionId: claims.sid,
+      appId: appSlug,
+    };
+    return true;
   }
 }

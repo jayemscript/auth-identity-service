@@ -36,10 +36,16 @@ export class SuperAdminGuard implements CanActivate {
         'Your sign-in has expired or is no longer valid. Please sign in again.',
       );
     }
-    if (claims.typ !== 'access' || claims.aud !== appSlug)
+    if (claims.typ !== 'access')
       throw new UnauthorizedException(
-        'Your sign-in has expired or is no longer valid. Please sign in again.',
+        'Use an access token to continue. Refresh tokens cannot access this route.',
       );
+    if (claims.aud !== appSlug)
+      throw new ForbiddenException({
+        code: 'TOKEN_APP_MISMATCH',
+        message:
+          'This access token was issued for a different app. For admin routes, use the designated admin app in the X-App-Id header.',
+      });
     const [adminApp] = await this.dataSource.query(
       `SELECT value->>'slug' AS slug FROM system.settings WHERE key = 'administration.app_slug' AND application_id IS NULL`,
     );
