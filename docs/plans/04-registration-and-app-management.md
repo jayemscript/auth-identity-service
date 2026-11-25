@@ -1,0 +1,14 @@
+# V1 registration and app management
+
+## Registration
+
+- `POST /v1/registration/public` requires an authenticated app with `registration.mode = public`. Accept name, email, password, and optional username and phone. When verification is off, create the account with `emailVerified: false`. When it is on, require a backend-supplied `verifiedEmail` matching the normalized registration email. The BFF must verify ownership before submitting the request and must derive the assertion from its completed verification flow. Missing or mismatched proof rejects the request before any insert. Store the verified flag and timestamp from the accepted assertion.
+- `POST /v1/registration/internal` requires a live access token for an actor in the calling app and `can_create_users = true` on that actor’s current config. The consumer decides whether the actor may onboard the particular person. The identity service enforces the actor flag and app mode. `public` allows both routes, `operator_only` allows the internal route, and `disabled` allows neither. Internal accounts start unverified. Record the actor and source app from authenticated context.
+- Both routes create the user, credential, user config, and grant to the registering app in one transaction. Return `201` with the user ID. Let the caller log in explicitly afterward. Enforce case-insensitive unique email and optional username in PostgreSQL. A duplicate returns `409` and creates no grant, including when the email already exists through another app. Use the explicit grant flow to give that existing user access.
+
+## App management and access
+
+- The SuperAdmin can create and list apps at `/v1/admin/apps` and read or update an app at `/v1/admin/apps/{appId}`. Allow display name, descriptive client type, status, and policy overrides to change. Keep the slug and designated admin app fixed in V1. Protect that app from disablement and its SuperAdmin grant from revocation so operators retain a management path.
+- Use `PUT` and `DELETE` at `/v1/admin/apps/{appId}/users/{userId}/access` to grant and revoke access. Keep one grant per user-app pair. Use `PATCH /v1/admin/users/{userId}/config` for `canCreateUsers` and the nullable session limit override. Registration requests cannot set administrative fields.
+- Revoke affected sessions in the same transaction as a grant revocation or app disablement. Coordinate the writes with login and refresh so they cannot leave a usable session after access is removed. Re-enabling an app or restoring a grant permits a new login. Previous sessions stay revoked.
+- `POST /v1/app-access/check` accepts a known `userId` from an authenticated backend and returns `allowed` for its own app, based on current account eligibility and grant state. The caller handles permission checks for its business actions. Unknown or disabled calling apps are rejected before processing the request.
