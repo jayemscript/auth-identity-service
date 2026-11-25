@@ -1,5 +1,6 @@
 import { Column, Entity, OneToMany } from 'typeorm';
 import { BaseEntity } from '../../../common/entities/base-entity';
+import { UserStatus } from '../enums';
 
 
 // hold all unique details about the user
@@ -47,4 +48,12 @@ export class User extends BaseEntity {
     nullable: true,
   })
   phoneNumberVerifiedAt?: Date;
+
+  @Column({
+    name: 'status',
+    type: 'enum',
+    enum: UserStatus,
+    default: null,
+  })
+  status!: UserStatus;
 }
