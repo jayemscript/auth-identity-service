@@ -1,0 +1,6 @@
+{
+  "registration.mode": "public",
+  "email_verification.required": false,
+  "session.idle_timeout_seconds": 604800,
+  "session.max_concurrent": 3
+}

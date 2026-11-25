@@ -33,14 +33,17 @@ async function main(): Promise<void> {
     throw new Error('Seed requires runKey, adminAppSlug, and apps');
   const adminEmail = process.env.SUPERADMINEMAIL?.trim().toLowerCase();
   const adminPassword = process.env.SUPERADMINPASSWORD;
+  if (!adminEmail)
+    throw new Error('Set SUPERADMINEMAIL in the repository-root .env file');
+  if (!adminPassword)
+    throw new Error('Set SUPERADMINPASSWORD in the repository-root .env file');
   if (
-    !adminEmail ||
-    !adminPassword ||
     adminPassword === 'change_this' ||
-    adminPassword.length < 15
+    adminPassword.toLowerCase().startsWith('replace_with') ||
+    adminPassword.length < 8
   )
     throw new Error(
-      'Set generated SUPERADMINEMAIL and SUPERADMINPASSWORD secrets',
+      'SUPERADMINPASSWORD must be generated, at least 8 characters, and not a placeholder',
     );
   if (
     !seed.apps.some(
@@ -72,6 +75,13 @@ async function main(): Promise<void> {
       const password = process.env[user.passwordSecret];
       if (!password || user.passwordSecret === 'SUPERADMINPASSWORD')
         throw new Error(`Missing user password secret ${user.passwordSecret}`);
+      if (
+        password.length < 8 ||
+        password.toLowerCase().startsWith('replace_with')
+      )
+        throw new Error(
+          `${user.passwordSecret} must be generated and at least 8 characters`,
+        );
       return {
         email: user.email.trim().toLowerCase(),
         name: user.name,
@@ -124,10 +134,20 @@ async function main(): Promise<void> {
         ...seed.settings,
         'administration.app_slug': seed.adminAppSlug.toLowerCase(),
       })) {
-        await tx.query(
-          `INSERT INTO system.settings(id, key, value) VALUES ($1, $2, $3)`,
-          [randomUUID(), key, JSON.stringify(value)],
-        );
+        if (key === 'administration.app_slug') {
+          await tx.query(
+            `INSERT INTO system.settings(id, key, value) VALUES ($1, $2, $3)
+             ON CONFLICT (key) WHERE application_id IS NULL
+             DO UPDATE SET value = EXCLUDED.value, updated_at = now()`,
+            [randomUUID(), key, JSON.stringify(value)],
+          );
+        } else {
+          await tx.query(
+            `INSERT INTO system.settings(id, key, value) VALUES ($1, $2, $3)
+             ON CONFLICT (key) WHERE application_id IS NULL DO NOTHING`,
+            [randomUUID(), key, JSON.stringify(value)],
+          );
+        }
       }
       for (const person of people) {
         const result = await withBetterAuthTransaction(tx, () =>

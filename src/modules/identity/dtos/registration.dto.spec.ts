@@ -32,4 +32,13 @@ describe('RegisterUserDto', () => {
     });
     expect(await validate(dto)).not.toHaveLength(0);
   });
+
+  it('accepts a password at the V1 minimum length', async () => {
+    const dto = plainToInstance(RegisterUserDto, {
+      name: 'Jordan',
+      email: 'jordan@example.com',
+      password: 'eight888',
+    });
+    expect(await validate(dto)).toHaveLength(0);
+  });
 });

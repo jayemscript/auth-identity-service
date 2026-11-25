@@ -2,6 +2,7 @@ import { betterAuth, type BetterAuthOptions } from 'better-auth';
 import type { Auth } from 'better-auth/types';
 import { username } from 'better-auth/plugins';
 import { Pool } from 'pg';
+import { randomUUID } from 'node:crypto';
 import * as argon2 from 'argon2';
 import { bindBetterAuthToTypeOrmTransaction } from '../common/database';
 
@@ -20,12 +21,15 @@ function createOptions(): BetterAuthOptions {
   return {
     secret: process.env.BETTER_AUTH_SECRET ?? '',
     database,
+    baseURL:
+      process.env.BETTER_AUTH_URL ??
+      `http://localhost:${process.env.PORT ?? '7000'}`,
     basePath: '/internal/better-auth',
     emailAndPassword: {
       enabled: true,
       disableSignUp: false,
       autoSignIn: false,
-      minPasswordLength: 15,
+      minPasswordLength: 8,
       maxPasswordLength: 128,
       password: {
         hash: (password: string) =>
@@ -127,7 +131,7 @@ function createOptions(): BetterAuthOptions {
       },
     },
     plugins: [username({ displayUsername: false })],
-    advanced: { database: { generateId: 'uuid' as const } },
+    advanced: { database: { generateId: () => randomUUID() } },
   } satisfies BetterAuthOptions;
 }
 
