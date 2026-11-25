@@ -1,3 +1,4 @@
+import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ConfigService } from '@nestjs/config';
@@ -8,6 +9,13 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
   const configService = app.get(ConfigService);
 
   const expressApp = app.getHttpAdapter().getInstance() as express.Express;
@@ -38,6 +46,8 @@ async function bootstrap() {
       'Authorization',
       'Cache-Control',
       'Pragma',
+      'X-API-Key',
+      'X-App-Id',
     ],
     credentials: true,
   });

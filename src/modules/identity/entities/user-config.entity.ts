@@ -1,58 +1,38 @@
-import { Column, Entity, OneToMany } from 'typeorm';
-import { BaseEntity } from '../../../common/entities/base-entity';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  PrimaryColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 
-/**
- * holds all unique configuration details per user
- * One To One
- */
-@Entity('users_config')
-export class UserConfig extends BaseEntity {
-  @Column({
-    name: 'is_banned',
-    type: 'boolean',
-    nullable: true,
-  })
+@Entity({ name: 'user_configs', schema: 'identity' })
+export class UserConfig {
+  @PrimaryColumn({ type: 'uuid' }) id!: string;
+  @Column({ name: 'user_id', type: 'text', unique: true }) userId!: string;
+  @Column({ type: 'text', default: 'active' }) status!: string;
+  @Column({ name: 'is_banned', type: 'boolean', default: false })
   isBanned!: boolean;
-
-  @Column({
-    name: 'ban_reason',
-    type: 'text',
-  })
-  banReason!: string;
-
-  @Column({ name: 'banned_expires', type: 'timestamp', nullable: true })
-  banExpires?: Date;
-
-  // only 1 account
-  @Column({
-    name: 'is_superadmin',
-    type: 'boolean',
-  })
+  @Column({ name: 'ban_expires_at', type: 'timestamptz', nullable: true })
+  banExpiresAt?: Date;
+  @Column({ name: 'is_superadmin', type: 'boolean', default: false })
   isSuperAdmin!: boolean;
-
+  @Column({ name: 'can_create_users', type: 'boolean', default: false })
+  canCreateUsers!: boolean;
+  @Column({ name: 'session_limit_override', type: 'integer', nullable: true })
+  sessionLimitOverride?: number;
   @Column({
-    name: 'multi_factor_enabled',
-    type: 'boolean',
-    nullable: true,
+    name: 'creation_source',
+    type: 'text',
+    default: 'public_registration',
   })
-  multiFactorEnabled?: boolean;
-
-  @Column({
-    name: 'must_change_password',
-    type: 'boolean',
-    nullable: true,
-  })
-  mustChangePassword?: boolean;
-
-  @Column({ name: 'password_changed_at', type: 'timestamp', nullable: true })
-  passwordChangedAt?: Date;
-
-  @Column({ name: 'last_login_at', type: 'timestamp', nullable: true })
-  lastLoginAt?: Date;
-
-  @Column({ name: 'last_login_ip', type: 'inet', nullable: true })
-  lastLoginIP?: Date;
-
-  @Column({ name: 'anonymized_at', type: 'timestamp', nullable: true })
-  anonymizedAt?: Date;
+  creationSource!: string;
+  @Column({ name: 'created_by_user_id', type: 'text', nullable: true })
+  createdByUserId?: string;
+  @Column({ name: 'created_by_application_id', type: 'uuid', nullable: true })
+  createdByApplicationId?: string;
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
+  createdAt!: Date;
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
+  updatedAt!: Date;
 }

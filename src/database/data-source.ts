@@ -1,10 +1,25 @@
 import { DataSource } from 'typeorm';
 import { config } from 'dotenv';
-
+import {
+  User,
+  UserConfig,
+  Application,
+  UserApplicationAccess,
+} from '../modules/identity/entities';
+import { AuthSession, Verification } from '../modules/auth/entities';
+import { Accounts } from '../modules/identity/entities';
 
 config();
 
-const ENTITIES = [];
+const ENTITIES = [
+  User,
+  Accounts,
+  UserConfig,
+  Application,
+  UserApplicationAccess,
+  AuthSession,
+  Verification,
+];
 
 export const AppDataSource = new DataSource({
   type: 'postgres',
@@ -16,5 +31,9 @@ export const AppDataSource = new DataSource({
   schema: 'public',
   ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
   entities: ENTITIES,
-  migrations: ['src/migrations/*.{ts,js}'],
+  migrations: ['src/database/migrations/*.{ts,js}'],
+  migrationsTableName: 'migrations',
+  synchronize: false,
+  migrationsRun: false,
+  migrationsTransactionMode: 'each',
 });
