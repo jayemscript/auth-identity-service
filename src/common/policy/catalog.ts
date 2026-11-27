@@ -125,7 +125,7 @@ export const POLICY_DEFINITIONS: readonly PolicyDefinition[] = [
   },
   {
     key: 'token.refresh_rotation',
-    // Catalog only: refresh-token rotation behavior is not selected by this policy yet.
+    // Implemented: strict mode revokes a session when an older refresh-token generation is reused.
     valueType: 'string',
     scope: 'deployment',
     defaultValue: 'rotate',

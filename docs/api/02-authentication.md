@@ -56,7 +56,7 @@ Use `tokenType: "refresh"` to check a refresh token. `data.active` indicates whe
 { "refreshToken": "{{refreshToken}}" }
 ```
 
-Save both replacement tokens from `data` immediately; refresh tokens rotate, so reusing an earlier generation is rejected.
+Save both replacement tokens from `data` together and serialize refresh calls for each session. Reusing an earlier generation is rejected. Operators can set the deployment-level `token.refresh_rotation` policy to `rotate_with_reuse_detection` to revoke the session and require sign-in when an already-used refresh token is presented again. A duplicate retry can trigger revocation in this mode. The default `rotate` rejects the stale token without revoking the session. `off` remains reserved and keeps the current rotation behavior.
 
 When the app’s active-session limit is reached, `session.overflow_policy` controls login. `block_new` returns `409 Conflict` with code `SESSION_LIMIT_REACHED`. `evict_oldest` revokes the earliest-created active session. `evict_least_active` revokes the session with the oldest successful refresh, falling back to its creation time when it has never been refreshed. Each revoked session is recorded as a `session.revoked` event with reason `session_overflow`.
 
