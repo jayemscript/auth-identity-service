@@ -1,1 +1,1 @@
-export * from './manage-apps.service';
+export * from './read-apps.service';

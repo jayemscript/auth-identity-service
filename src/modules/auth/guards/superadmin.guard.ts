@@ -47,7 +47,7 @@ export class SuperAdminGuard implements CanActivate {
           'This access token was issued for a different app. For admin routes, use the designated admin app in the X-App-Id header.',
       });
     const [adminApp] = await this.dataSource.query(
-      `SELECT value->>'slug' AS slug FROM system.settings WHERE key = 'administration.app_slug' AND application_id IS NULL`,
+      `SELECT value #>> '{}' AS slug FROM system.settings WHERE key = 'administration.app_slug' AND application_id IS NULL`,
     );
     const [user] = await this.dataSource.query(
       `SELECT 1 FROM identity.user_configs c JOIN auth.sessions s ON s.user_id = c.user_id

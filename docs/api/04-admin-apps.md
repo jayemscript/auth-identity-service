@@ -1,41 +1,30 @@
 # Admin: applications
 
-These routes require the shared API key and a SuperAdmin access token issued for the designated admin app. Set `X-App-Id: {{adminAppSlug}}` and `Authorization: Bearer {{accessToken}}` for every request in this file.
+These read-only routes require the shared API key and a SuperAdmin access token issued for the designated admin app. Set `X-App-Id: {{adminAppSlug}}` and `Authorization: Bearer {{accessToken}}` for every request.
 
-## Create app
+## List apps
 
-`POST {{baseUrl}}/v1/admin/apps`
+`GET {{baseUrl}}/v1/admin/apps`
+
+Returns the consuming apps configured for this deployment. App records are added through the bootstrap seed; this API does not create, update, disable, or delete them.
+
+## Get one app
+
+`GET {{baseUrl}}/v1/admin/apps/{{appId}}`
+
+`appId` accepts the app UUID or its stable slug. Keep a slug unchanged because consuming backends send it in `X-App-Id`; to introduce a distinct app identity, add a new slug to the bootstrap seed.
+
+## Add an app
+
+Add a new entry to `apps` in the bootstrap seed, then rerun bootstrap with its existing `runKey`. Bootstrap inserts missing app slugs and leaves users, settings, and existing app records unchanged; an existing slug with different metadata causes the run to fail. For example:
 
 ```json
 {
-  "slug": "courier-app",
-  "name": "Courier App",
+  "slug": "customer-app",
+  "name": "Customer App",
   "clientType": "mobile",
-  "policy": {
-    "registrationMode": "public",
-    "emailVerificationRequired": false,
-    "idleTimeoutSeconds": 604800,
-    "maxConcurrentSessions": 3
-  }
+  "policy": { "registrationMode": "public" }
 }
 ```
 
-Allowed registration modes are `public`, `operator_only`, and `disabled`; app slug must be lowercase letters, digits, dots, underscores, or hyphens. The response includes a plain-language message and the created app, including its ID and status, in `data`.
-
-## List and get apps
-
-`GET {{baseUrl}}/v1/admin/apps` lists apps. `GET {{baseUrl}}/v1/admin/apps/{{appSlug}}` returns one app; `appId` accepts the app UUID or slug.
-
-## Update app
-
-`PATCH {{baseUrl}}/v1/admin/apps/{{appSlug}}`
-
-```json
-{
-  "name": "Courier App",
-  "status": "active",
-  "policy": { "registrationMode": "operator_only" }
-}
-```
-
-You may update `name`, `clientType`, `status` (`active` or `disabled`), and policy values. Disabling an app revokes its active sessions, and the designated admin app cannot be disabled.
+Database protections reject updates and deletes to registered app rows. Adding an app does not automatically grant it to existing users; create those grants through the supported user app-access flow.

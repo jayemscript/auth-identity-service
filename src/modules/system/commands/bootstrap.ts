@@ -25,12 +25,26 @@ interface SeedInput {
   }>;
 }
 
+function stableJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`;
+  if (value && typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>).sort(
+      ([left], [right]) => left.localeCompare(right),
+    );
+    return `{${entries
+      .map(([key, item]) => `${JSON.stringify(key)}:${stableJson(item)}`)
+      .join(',')}}`;
+  }
+  return JSON.stringify(value) ?? 'null';
+}
+
 async function main(): Promise<void> {
   const path = process.argv[2];
   if (!path) throw new Error('Usage: make bootstrap SEED_FILE=path');
   const seed = JSON.parse(await readFile(path, 'utf8')) as SeedInput;
   if (!seed.runKey || !seed.adminAppSlug || !seed.apps?.length)
     throw new Error('Seed requires runKey, adminAppSlug, and apps');
+  const adminAppSlug = seed.adminAppSlug.trim().toLowerCase();
   const adminEmail = process.env.SUPERADMINEMAIL?.trim().toLowerCase();
   const adminPassword = process.env.SUPERADMINPASSWORD;
   if (!adminEmail)
@@ -45,15 +59,17 @@ async function main(): Promise<void> {
     throw new Error(
       'SUPERADMINPASSWORD must be generated, at least 8 characters, and not a placeholder',
     );
-  if (
-    !seed.apps.some(
-      (app) => app.slug.toLowerCase() === seed.adminAppSlug.toLowerCase(),
-    )
-  )
+  if (!seed.apps.some((app) => app.slug.trim().toLowerCase() === adminAppSlug))
     throw new Error('adminAppSlug must reference a seeded app');
   const normalizedSlugs = seed.apps.map((app) => app.slug.trim().toLowerCase());
   if (new Set(normalizedSlugs).size !== normalizedSlugs.length)
     throw new Error('App slugs must be unique');
+  for (const app of seed.apps) {
+    if (!/^[a-z0-9][a-z0-9._-]{1,62}$/.test(app.slug.trim().toLowerCase()))
+      throw new Error(`Invalid app slug ${app.slug}`);
+    if (!app.name.trim() || !app.clientType.trim())
+      throw new Error(`App ${app.slug} requires a name and clientType`);
+  }
   const people: Array<{
     email: string;
     name: string;
@@ -67,7 +83,7 @@ async function main(): Promise<void> {
       email: adminEmail,
       name: 'SuperAdmin',
       password: adminPassword,
-      appSlugs: [seed.adminAppSlug],
+      appSlugs: [adminAppSlug],
       superAdmin: true,
       canCreateUsers: true,
     },
@@ -111,21 +127,37 @@ async function main(): Promise<void> {
     const appIds = new Map<string, string>();
     await AppDataSource.transaction(async (tx) => {
       await tx.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [
-        seed.runKey,
+        'auth-identity-service-bootstrap',
       ]);
-      const [existing] = await tx.query(
-        `SELECT id FROM system.bootstrap_runs WHERE run_key = $1`,
-        [seed.runKey],
-      );
-      if (existing) return;
       for (const app of seed.apps) {
-        const id = randomUUID();
-        await tx.query(
-          `INSERT INTO apps.applications(id, slug, name, client_type, policy) VALUES ($1, lower($2), $3, $4, $5)`,
-          [id, app.slug, app.name, app.clientType, app.policy ?? {}],
+        const slug = app.slug.trim().toLowerCase();
+        const policy = app.policy ?? {};
+        const [inserted] = await tx.query(
+          `INSERT INTO apps.applications(id, slug, name, client_type, policy)
+           VALUES ($1, $2, $3, $4, $5)
+           ON CONFLICT (slug) DO NOTHING
+           RETURNING id, name, client_type, policy`,
+          [randomUUID(), slug, app.name.trim(), app.clientType.trim(), policy],
         );
-        appIds.set(app.slug.toLowerCase(), id);
+        const [existingApp] = inserted
+          ? [inserted]
+          : await tx.query(
+              `SELECT id, name, client_type, policy FROM apps.applications WHERE slug = $1`,
+              [slug],
+            );
+        if (!existingApp)
+          throw new Error(`Could not load app ${slug} after bootstrap insert`);
+        if (
+          existingApp.name !== app.name.trim() ||
+          existingApp.client_type !== app.clientType.trim() ||
+          stableJson(existingApp.policy ?? {}) !== stableJson(policy)
+        )
+          throw new Error(
+            `App ${slug} is already registered with different settings. App records are immutable; add a new app with a new slug instead.`,
+          );
+        appIds.set(slug, existingApp.id);
       }
+
       for (const [key, value] of Object.entries({
         'registration.mode': 'public',
         'email_verification.required': false,
@@ -134,21 +166,26 @@ async function main(): Promise<void> {
         ...seed.settings,
         'administration.app_slug': seed.adminAppSlug.toLowerCase(),
       })) {
-        if (key === 'administration.app_slug') {
-          await tx.query(
-            `INSERT INTO system.settings(id, key, value) VALUES ($1, $2, $3)
-             ON CONFLICT (key) WHERE application_id IS NULL
-             DO UPDATE SET value = EXCLUDED.value, updated_at = now()`,
-            [randomUUID(), key, JSON.stringify(value)],
-          );
-        } else {
-          await tx.query(
-            `INSERT INTO system.settings(id, key, value) VALUES ($1, $2, $3)
-             ON CONFLICT (key) WHERE application_id IS NULL DO NOTHING`,
-            [randomUUID(), key, JSON.stringify(value)],
-          );
-        }
+        await tx.query(
+          `INSERT INTO system.settings(id, key, value) VALUES ($1, $2, $3)
+           ON CONFLICT (key) WHERE application_id IS NULL DO NOTHING`,
+          [randomUUID(), key, JSON.stringify(value)],
+        );
       }
+      const [configuredAdmin] = await tx.query(
+        `SELECT value #>> '{}' AS slug FROM system.settings WHERE key = 'administration.app_slug' AND application_id IS NULL`,
+      );
+      if (configuredAdmin?.slug?.toLowerCase() !== adminAppSlug)
+        throw new Error(
+          'The designated admin app cannot change after bootstrap. Keep adminAppSlug unchanged.',
+        );
+
+      const [existingRun] = await tx.query(
+        `SELECT id FROM system.bootstrap_runs WHERE run_key = $1`,
+        [seed.runKey],
+      );
+      if (existingRun) return;
+
       for (const person of people) {
         const result = await withBetterAuthTransaction(tx, () =>
           auth.api.signUpEmail({

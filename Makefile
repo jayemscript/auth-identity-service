@@ -22,6 +22,7 @@ prod:
 
 bootstrap:
 	pnpm exec ts-node -r tsconfig-paths/register src/modules/system/commands/bootstrap.ts $(SEED_FILE)
-
+# make bootstrap SEED_FILE=docs/examples/bootstrap.seed.example.json
 project-settings:
 	pnpm exec ts-node -r tsconfig-paths/register src/modules/system/commands/project-settings.ts $(SETTINGS_FILE)
+# make project-settings SETTINGS_FILE=docs/examples/project-settings.example.json

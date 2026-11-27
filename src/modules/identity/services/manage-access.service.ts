@@ -65,7 +65,7 @@ export class ManageAccessService {
     }
     return this.dataSource.transaction(async (tx) => {
       const [admin] = await tx.query(
-        `SELECT value->>'slug' AS slug FROM system.settings WHERE key = 'administration.app_slug' AND application_id IS NULL`,
+        `SELECT value #>> '{}' AS slug FROM system.settings WHERE key = 'administration.app_slug' AND application_id IS NULL`,
       );
       const [superAdmin] = await tx.query(
         `SELECT is_superadmin FROM identity.user_configs WHERE user_id = $1`,

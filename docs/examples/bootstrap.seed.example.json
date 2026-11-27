@@ -19,6 +19,12 @@
       "name": "Mobile App",
       "clientType": "mobile",
       "policy": { "registrationMode": "public" }
+    },
+    {
+      "slug": "customer-app",
+      "name": "Customer App",
+      "clientType": "mobile",
+      "policy": { "registrationMode": "public" }
     }
   ],
   "users": [
