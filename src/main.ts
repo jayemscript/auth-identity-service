@@ -1,3 +1,4 @@
+import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ConfigService } from '@nestjs/config';
@@ -5,9 +6,18 @@ import cookieParser from 'cookie-parser';
 import bodyParser from 'body-parser';
 import express from 'express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  app.useGlobalFilters(new HttpExceptionFilter());
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
   const configService = app.get(ConfigService);
 
   const expressApp = app.getHttpAdapter().getInstance() as express.Express;
@@ -38,6 +48,8 @@ async function bootstrap() {
       'Authorization',
       'Cache-Control',
       'Pragma',
+      'X-API-Key',
+      'X-App-Id',
     ],
     credentials: true,
   });

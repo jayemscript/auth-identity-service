@@ -1,14 +1,9 @@
-import { Module, Global } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { Global, Module } from '@nestjs/common';
 import { DatabaseService } from './database.service';
-
-const ENTITIES = [];
 
 @Global()
 @Module({
-  imports: [],
   providers: [DatabaseService],
-  exports: [DatabaseService, TypeOrmModule],
+  exports: [DatabaseService],
 })
 export class DatabaseModule {}

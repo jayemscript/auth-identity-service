@@ -1,0 +1,340 @@
+{
+  "runKey": "v1-local-development-seed-001",
+  "adminAppSlug": "internal-admin",
+  "apps": [
+    {
+      "name": "Internal Admin",
+      "clientType": "internal",
+      "slug": "internal-admin",
+      "policy": {
+        "registration.mode": "operator_only",
+        "session.max_concurrent": 5,
+        "account.approval": "email_verification"
+      }
+    },
+    {
+      "name": "Public E-commerce Web",
+      "clientType": "web",
+      "slug": "public-ecommerce-web",
+      "policy": {
+        "registration.mode": "public",
+        "session.max_concurrent": 10,
+        "mfa.required": false,
+        "account.approval": "email_verification"
+      }
+    },
+    {
+      "name": "Mobile App",
+      "clientType": "mobile",
+      "slug": "mobile-app",
+      "policy": {
+        "registration.mode": "public"
+      }
+    },
+    {
+      "name": "Customer App",
+      "clientType": "mobile",
+      "slug": "customer-app",
+      "policy": {
+        "registration.mode": "public"
+      }
+    },
+    {
+      "name": "Workspace Dashboard",
+      "clientType": "web",
+      "slug": "workspace-dashboard",
+      "policy": {
+        "registration.mode": "hybrid"
+      }
+    },
+    {
+      "name": "Business Dashboard",
+      "clientType": "web",
+      "slug": "business-dashboard",
+      "policy": {
+        "registration.mode": "invite_only"
+      }
+    }
+  ],
+  "users": [
+    {
+      "name": "Mock User 01",
+      "email": "mockuser01@example.com",
+      "username": "mockuser01",
+      "passwordSecret": "MOCK_USERS_PASSWORD",
+      "appSlugs": [
+        "internal-admin",
+        "public-ecommerce-web"
+      ],
+      "canCreateUsers": true
+    },
+    {
+      "name": "Mock User 02",
+      "email": "mockuser02@example.com",
+      "username": "mockuser02",
+      "passwordSecret": "MOCK_USERS_PASSWORD",
+      "appSlugs": [
+        "public-ecommerce-web"
+      ]
+    },
+    {
+      "name": "Mock User 03",
+      "email": "mockuser03@example.com",
+      "username": "mockuser03",
+      "passwordSecret": "MOCK_USERS_PASSWORD",
+      "appSlugs": [
+        "mobile-app"
+      ]
+    },
+    {
+      "name": "Mock User 04",
+      "email": "mockuser04@example.com",
+      "username": "mockuser04",
+      "passwordSecret": "MOCK_USERS_PASSWORD",
+      "appSlugs": [
+        "customer-app"
+      ]
+    },
+    {
+      "name": "Mock User 05",
+      "email": "mockuser05@example.com",
+      "username": "mockuser05",
+      "passwordSecret": "MOCK_USERS_PASSWORD",
+      "appSlugs": [
+        "workspace-dashboard",
+        "business-dashboard"
+      ]
+    },
+    {
+      "name": "Mock User 06",
+      "email": "mockuser06@example.com",
+      "username": "mockuser06",
+      "passwordSecret": "MOCK_USERS_PASSWORD",
+      "appSlugs": [
+        "business-dashboard"
+      ]
+    },
+    {
+      "name": "Mock User 07",
+      "email": "mockuser07@example.com",
+      "username": "mockuser07",
+      "passwordSecret": "MOCK_USERS_PASSWORD",
+      "appSlugs": [
+        "internal-admin"
+      ]
+    },
+    {
+      "name": "Mock User 08",
+      "email": "mockuser08@example.com",
+      "username": "mockuser08",
+      "passwordSecret": "MOCK_USERS_PASSWORD",
+      "appSlugs": [
+        "public-ecommerce-web"
+      ]
+    },
+    {
+      "name": "Mock User 09",
+      "email": "mockuser09@example.com",
+      "username": "mockuser09",
+      "passwordSecret": "MOCK_USERS_PASSWORD",
+      "appSlugs": [
+        "mobile-app",
+        "customer-app"
+      ]
+    },
+    {
+      "name": "Mock User 10",
+      "email": "mockuser10@example.com",
+      "username": "mockuser10",
+      "passwordSecret": "MOCK_USERS_PASSWORD",
+      "appSlugs": [
+        "customer-app"
+      ]
+    },
+    {
+      "name": "Mock User 11",
+      "email": "mockuser11@example.com",
+      "username": "mockuser11",
+      "passwordSecret": "MOCK_USERS_PASSWORD",
+      "appSlugs": [
+        "workspace-dashboard"
+      ]
+    },
+    {
+      "name": "Mock User 12",
+      "email": "mockuser12@example.com",
+      "username": "mockuser12",
+      "passwordSecret": "MOCK_USERS_PASSWORD",
+      "appSlugs": [
+        "business-dashboard"
+      ]
+    },
+    {
+      "name": "Mock User 13",
+      "email": "mockuser13@example.com",
+      "username": "mockuser13",
+      "passwordSecret": "MOCK_USERS_PASSWORD",
+      "appSlugs": [
+        "internal-admin",
+        "public-ecommerce-web"
+      ]
+    },
+    {
+      "name": "Mock User 14",
+      "email": "mockuser14@example.com",
+      "username": "mockuser14",
+      "passwordSecret": "MOCK_USERS_PASSWORD",
+      "appSlugs": [
+        "public-ecommerce-web"
+      ]
+    },
+    {
+      "name": "Mock User 15",
+      "email": "mockuser15@example.com",
+      "username": "mockuser15",
+      "passwordSecret": "MOCK_USERS_PASSWORD",
+      "appSlugs": [
+        "mobile-app"
+      ]
+    },
+    {
+      "name": "Mock User 16",
+      "email": "mockuser16@example.com",
+      "username": "mockuser16",
+      "passwordSecret": "MOCK_USERS_PASSWORD",
+      "appSlugs": [
+        "customer-app"
+      ]
+    },
+    {
+      "name": "Mock User 17",
+      "email": "mockuser17@example.com",
+      "username": "mockuser17",
+      "passwordSecret": "MOCK_USERS_PASSWORD",
+      "appSlugs": [
+        "workspace-dashboard",
+        "business-dashboard"
+      ]
+    },
+    {
+      "name": "Mock User 18",
+      "email": "mockuser18@example.com",
+      "username": "mockuser18",
+      "passwordSecret": "MOCK_USERS_PASSWORD",
+      "appSlugs": [
+        "business-dashboard"
+      ]
+    },
+    {
+      "name": "Mock User 19",
+      "email": "mockuser19@example.com",
+      "username": "mockuser19",
+      "passwordSecret": "MOCK_USERS_PASSWORD",
+      "appSlugs": [
+        "internal-admin"
+      ]
+    },
+    {
+      "name": "Mock User 20",
+      "email": "mockuser20@example.com",
+      "username": "mockuser20",
+      "passwordSecret": "MOCK_USERS_PASSWORD",
+      "appSlugs": [
+        "public-ecommerce-web"
+      ]
+    },
+    {
+      "name": "Mock User 21",
+      "email": "mockuser21@example.com",
+      "username": "mockuser21",
+      "passwordSecret": "MOCK_USERS_PASSWORD",
+      "appSlugs": [
+        "mobile-app",
+        "customer-app"
+      ]
+    },
+    {
+      "name": "Mock User 22",
+      "email": "mockuser22@example.com",
+      "username": "mockuser22",
+      "passwordSecret": "MOCK_USERS_PASSWORD",
+      "appSlugs": [
+        "customer-app"
+      ]
+    },
+    {
+      "name": "Mock User 23",
+      "email": "mockuser23@example.com",
+      "username": "mockuser23",
+      "passwordSecret": "MOCK_USERS_PASSWORD",
+      "appSlugs": [
+        "workspace-dashboard"
+      ]
+    },
+    {
+      "name": "Mock User 24",
+      "email": "mockuser24@example.com",
+      "username": "mockuser24",
+      "passwordSecret": "MOCK_USERS_PASSWORD",
+      "appSlugs": [
+        "business-dashboard"
+      ]
+    },
+    {
+      "name": "Mock User 25",
+      "email": "mockuser25@example.com",
+      "username": "mockuser25",
+      "passwordSecret": "MOCK_USERS_PASSWORD",
+      "appSlugs": [
+        "internal-admin",
+        "public-ecommerce-web"
+      ]
+    },
+    {
+      "name": "Mock User 26",
+      "email": "mockuser26@example.com",
+      "username": "mockuser26",
+      "passwordSecret": "MOCK_USERS_PASSWORD",
+      "appSlugs": [
+        "public-ecommerce-web"
+      ]
+    },
+    {
+      "name": "Mock User 27",
+      "email": "mockuser27@example.com",
+      "username": "mockuser27",
+      "passwordSecret": "MOCK_USERS_PASSWORD",
+      "appSlugs": [
+        "mobile-app"
+      ]
+    },
+    {
+      "name": "Mock User 28",
+      "email": "mockuser28@example.com",
+      "username": "mockuser28",
+      "passwordSecret": "MOCK_USERS_PASSWORD",
+      "appSlugs": [
+        "customer-app"
+      ]
+    },
+    {
+      "name": "Mock User 29",
+      "email": "mockuser29@example.com",
+      "username": "mockuser29",
+      "passwordSecret": "MOCK_USERS_PASSWORD",
+      "appSlugs": [
+        "workspace-dashboard",
+        "business-dashboard"
+      ]
+    },
+    {
+      "name": "Mock User 30",
+      "email": "mockuser30@example.com",
+      "username": "mockuser30",
+      "passwordSecret": "MOCK_USERS_PASSWORD",
+      "appSlugs": [
+        "business-dashboard"
+      ]
+    }
+  ]
+}
