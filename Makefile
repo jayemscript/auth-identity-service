@@ -26,3 +26,8 @@ bootstrap:
 project-settings:
 	pnpm exec ts-node -r tsconfig-paths/register src/modules/system/commands/project-settings.ts $(SETTINGS_FILE)
 # make project-settings SETTINGS_FILE=docs/examples/project-settings.example.json
+issue-app-credential:
+	pnpm exec ts-node -r tsconfig-paths/register src/modules/system/commands/app-credentials.ts issue $(APP_SLUG) $(CREDENTIAL_NAME) $(SCOPES) $(EXPIRES_AT)
+# make issue-app-credential APP_SLUG=public-ecommerce-web CREDENTIAL_NAME=public-ecommerce-web SCOPES=auth:login,tokens:verify,tokens:refresh,users:register
+revoke-app-credential:
+	pnpm exec ts-node -r tsconfig-paths/register src/modules/system/commands/app-credentials.ts revoke $(APP_SLUG) $(CREDENTIAL_ID)

@@ -12,6 +12,7 @@ import { ApiKeyGuard } from '../../auth/guards/api-key.guard';
 import { ManageAccessService } from '../services/manage-access.service';
 import { UpdateUserConfigDto } from '../dtos';
 import { successResponse } from '../../../common';
+import { RequireAppScopes } from '../../../common/security';
 
 @Controller('v1/admin')
 @UseGuards(ApiKeyGuard, SuperAdminGuard)
@@ -19,6 +20,7 @@ export class AdminAccessController {
   constructor(private readonly access: ManageAccessService) {}
 
   @Put('apps/:appId/users/:userId/access')
+  @RequireAppScopes('users:access:write')
   async grant(@Param('appId') appId: string, @Param('userId') userId: string) {
     const result: unknown = await this.access.execute({
       action: 'grant',
@@ -28,6 +30,7 @@ export class AdminAccessController {
     return successResponse('App access was granted to the user.', result);
   }
   @Delete('apps/:appId/users/:userId/access')
+  @RequireAppScopes('users:access:write')
   async revoke(@Param('appId') appId: string, @Param('userId') userId: string) {
     const result: unknown = await this.access.execute({
       action: 'revoke',
@@ -43,6 +46,7 @@ export class AdminAccessController {
     );
   }
   @Patch('users/:userId/config')
+  @RequireAppScopes('users:config:write')
   async updateConfig(
     @Param('userId') userId: string,
     @Body() body: UpdateUserConfigDto,

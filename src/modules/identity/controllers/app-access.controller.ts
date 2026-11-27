@@ -4,6 +4,7 @@ import { ApiKeyGuard } from '../../auth/guards/api-key.guard';
 import { CheckAppAccessService } from '../services/check-app-access.service';
 import { AppAccessCheckDto } from '../dtos';
 import { successResponse } from '../../../common';
+import { RequireAppScopes } from '../../../common/security';
 
 @Controller('v1/app-access')
 @UseGuards(ApiKeyGuard)
@@ -11,6 +12,7 @@ export class AppAccessController {
   constructor(private readonly checkAccess: CheckAppAccessService) {}
 
   @Post('check')
+  @RequireAppScopes('app-access:check')
   async check(@Body() body: AppAccessCheckDto, @Req() request: Request) {
     const result = await this.checkAccess.execute(
       body.userId,

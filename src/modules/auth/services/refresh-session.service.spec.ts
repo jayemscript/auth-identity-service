@@ -1,6 +1,9 @@
 import { UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { DataSource } from 'typeorm';
+jest.mock('../../../auth/better-auth', () => ({
+  auth: { api: { signJWT: jest.fn().mockResolvedValue({ token: 'new-access' }) } },
+}));
 import { RefreshSessionService } from './refresh-session.service';
 
 describe('RefreshSessionService', () => {
@@ -24,7 +27,7 @@ describe('RefreshSessionService', () => {
       typ: 'refresh',
       generation: 2,
     });
-    signAsync.mockResolvedValueOnce('new-access').mockResolvedValueOnce('new-refresh');
+    signAsync.mockResolvedValueOnce('new-refresh');
     transactionQuery
       .mockResolvedValueOnce([
         {
@@ -52,7 +55,7 @@ describe('RefreshSessionService', () => {
     });
     expect(dataSource.transaction).toHaveBeenCalledTimes(1);
     expect(transactionQuery).toHaveBeenCalledTimes(3);
-    expect(signAsync.mock.calls[1][0]).toMatchObject({
+    expect(signAsync.mock.calls[0][0]).toMatchObject({
       typ: 'refresh',
       generation: 3,
     });

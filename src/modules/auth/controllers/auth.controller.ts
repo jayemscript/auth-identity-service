@@ -19,6 +19,7 @@ import {
   VerifyTokenRequestDto,
 } from '../dtos';
 import { successResponse } from '../../../common';
+import { RequireAppScopes } from '../../../common/security';
 
 @Controller('v1/auth')
 @UseGuards(ApiKeyGuard)
@@ -31,6 +32,7 @@ export class AuthController {
   ) {}
 
   @Post('login')
+  @RequireAppScopes('auth:login')
   async execute(@Body() body: LoginRequestDto, @Req() request: Request) {
     const appId = request.header('x-app-id');
     if (!appId)
@@ -45,6 +47,7 @@ export class AuthController {
   }
 
   @Post('verify')
+  @RequireAppScopes('tokens:verify')
   async verify(@Body() body: VerifyTokenRequestDto, @Req() request: Request) {
     const appSlug = request.header('x-app-id');
     if (!appSlug)
@@ -61,6 +64,7 @@ export class AuthController {
   }
 
   @Post('refresh')
+  @RequireAppScopes('tokens:refresh')
   async refresh(@Body() body: RefreshTokenRequestDto, @Req() request: Request) {
     const appSlug = request.header('x-app-id');
     if (!appSlug)
@@ -75,6 +79,7 @@ export class AuthController {
   }
 
   @Post('logout')
+  @RequireAppScopes('sessions:revoke:self')
   @UseGuards(UserSessionGuard)
   async logout(
     @Req()

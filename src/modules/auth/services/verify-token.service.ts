@@ -3,6 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import { DataSource } from 'typeorm';
 import { sessionIsActive } from '../../../common/security';
 import { VerifyTokenResponseDto } from '../dtos';
+import { verifyAccessToken } from '../../../common/security/verify-access-token';
 
 @Injectable()
 export class VerifyTokenService {
@@ -25,11 +26,11 @@ export class VerifyTokenService {
       exp?: number;
     };
     try {
-      claims = await this.jwt.verifyAsync<typeof claims>(input.token, {
-        secret: process.env.JWT_SECRET,
-        algorithms: ['HS256'],
-        issuer: 'auth-identity-service',
-      });
+      claims = (await verifyAccessToken(
+        input.token,
+        this.jwt,
+        this.dataSource,
+      )) as typeof claims;
       if (claims.typ !== input.tokenType || claims.aud !== input.appSlug)
         return Object.assign(new VerifyTokenResponseDto(), { active: false });
     } catch {

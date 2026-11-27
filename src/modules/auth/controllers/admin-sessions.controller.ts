@@ -2,6 +2,7 @@ import { Controller, Delete, Get, Param, UseGuards } from '@nestjs/common';
 import { SuperAdminGuard } from '../guards/superadmin.guard';
 import { ApiKeyGuard } from '../guards/api-key.guard';
 import { AdminSessionsService } from '../services/admin-sessions.service';
+import { RequireAppScopes } from '../../../common/security';
 import { successResponse } from '../../../common';
 
 @Controller('v1/admin/apps/:appId/users/:userId/sessions')
@@ -10,11 +11,13 @@ export class AdminSessionsController {
   constructor(private readonly sessions: AdminSessionsService) {}
 
   @Get()
+  @RequireAppScopes('sessions:read')
   async list(@Param('appId') appId: string, @Param('userId') userId: string) {
     const result = await this.sessions.execute({ appId, userId });
     return successResponse('Here are the user’s sessions.', result);
   }
   @Get(':sessionId')
+  @RequireAppScopes('sessions:read')
   async get(
     @Param('appId') appId: string,
     @Param('userId') userId: string,
@@ -24,6 +27,7 @@ export class AdminSessionsController {
     return successResponse('Here are the session details.', result);
   }
   @Delete(':sessionId')
+  @RequireAppScopes('sessions:revoke')
   async revoke(
     @Param('appId') appId: string,
     @Param('userId') userId: string,

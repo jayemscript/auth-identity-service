@@ -5,6 +5,7 @@ import { RegisterUserService } from '../services/register-user.service';
 import { UserSessionGuard } from '../../auth/guards/user-session.guard';
 import { RegisterUserDto } from '../dtos';
 import { successResponse } from '../../../common';
+import { RequireAppScopes } from '../../../common/security';
 
 @Controller('v1/registration')
 @UseGuards(ApiKeyGuard)
@@ -12,6 +13,7 @@ export class RegistrationController {
   constructor(private readonly registerUser: RegisterUserService) {}
 
   @Post('public')
+  @RequireAppScopes('users:register')
   async registerPublic(@Body() body: RegisterUserDto, @Req() request: Request) {
     const result = await this.registerUser.execute({
       ...body,
@@ -25,6 +27,7 @@ export class RegistrationController {
   }
 
   @Post('internal')
+  @RequireAppScopes('users:register')
   @UseGuards(UserSessionGuard)
   async registerInternal(
     @Body() body: RegisterUserDto,

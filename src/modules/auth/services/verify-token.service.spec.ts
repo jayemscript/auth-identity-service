@@ -47,7 +47,7 @@ describe('VerifyTokenService', () => {
     ]);
 
     await expect(
-      service.execute({ token: 'jwt', tokenType: 'refresh', appSlug: 'shop' }),
+      service.execute({ token: 'eyJhbGciOiJIUzI1NiJ9.e30.sig', tokenType: 'refresh', appSlug: 'shop' }),
     ).resolves.toMatchObject({ active: true, userId: 'user-1' });
   });
 
@@ -55,7 +55,7 @@ describe('VerifyTokenService', () => {
     verifyAsync.mockResolvedValue({ typ: 'access', aud: 'shop' });
     query.mockRejectedValue(new Error('database offline'));
     await expect(
-      service.execute({ token: 'jwt', tokenType: 'access', appSlug: 'shop' }),
+      service.execute({ token: 'eyJhbGciOiJIUzI1NiJ9.e30.sig', tokenType: 'access', appSlug: 'shop' }),
     ).rejects.toBeInstanceOf(ServiceUnavailableException);
   });
 });

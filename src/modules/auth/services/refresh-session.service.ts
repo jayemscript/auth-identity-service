@@ -2,6 +2,7 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { DataSource } from 'typeorm';
 import { AuthTokenPairResponseDto } from '../dtos';
+import { signAccessToken } from '../../../common/security/sign-access-token';
 
 @Injectable()
 export class RefreshSessionService {
@@ -109,15 +110,12 @@ export class RefreshSessionService {
       iat: nowSeconds,
     };
     const [accessToken, refreshToken] = await Promise.all([
-      this.jwt.signAsync(
-        { ...base, typ: 'access' },
-        {
-          secret: process.env.JWT_SECRET,
-          algorithm: 'HS256',
-          issuer: 'auth-identity-service',
-          expiresIn: accessSeconds,
-        },
-      ),
+      signAccessToken({
+        ...base,
+        typ: 'access',
+        exp: nowSeconds + accessSeconds,
+        iss: 'auth-identity-service',
+      }),
       this.jwt.signAsync(
         { ...base, typ: 'refresh', generation },
         {

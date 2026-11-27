@@ -1,6 +1,6 @@
 import { betterAuth, type BetterAuthOptions } from 'better-auth';
 import type { Auth } from 'better-auth/types';
-import { username } from 'better-auth/plugins';
+import { jwt, username } from 'better-auth/plugins';
 import { Pool } from 'pg';
 import { randomUUID } from 'node:crypto';
 import * as argon2 from 'argon2';
@@ -135,7 +135,32 @@ function createOptions(): BetterAuthOptions {
         updatedAt: 'updated_at',
       },
     },
-    plugins: [username({ displayUsername: false })],
+    plugins: [
+      username({ displayUsername: false }),
+      jwt({
+        schema: {
+          jwks: {
+            fields: {
+              publicKey: 'public_key',
+              privateKey: 'private_key',
+              createdAt: 'created_at',
+              expiresAt: 'expires_at',
+              alg: 'alg',
+              crv: 'crv',
+            },
+          },
+        },
+        jwks: {
+          keyPairConfig: { alg: 'ES256' },
+          rotationInterval: 30 * 24 * 60 * 60,
+          gracePeriod: Number(process.env.JWT_ACCESS_EXPIRATION ?? 900) + 60,
+        },
+        jwt: {
+          issuer: 'auth-identity-service',
+          audience: 'auth-identity-service',
+        },
+      }),
+    ],
     advanced: { database: { generateId: () => randomUUID() } },
   } satisfies BetterAuthOptions;
 }

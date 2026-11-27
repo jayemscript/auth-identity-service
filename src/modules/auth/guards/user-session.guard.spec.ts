@@ -14,7 +14,7 @@ describe('UserSessionGuard', () => {
     const request = {
       header: (name: string) =>
         name === 'authorization'
-          ? 'Bearer valid-admin-token'
+          ? 'Bearer eyJhbGciOiJIUzI1NiJ9.e30.sig'
           : name === 'x-app-id'
             ? 'merchant-app'
             : undefined,

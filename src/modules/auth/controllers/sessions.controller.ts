@@ -15,6 +15,7 @@ import { ListSessionsService } from '../services/list-sessions.service';
 import { RevokeSessionsService } from '../services/revoke-sessions.service';
 import { ListSessionsQueryDto } from '../dtos';
 import { successResponse } from '../../../common';
+import { RequireAppScopes } from '../../../common/security';
 
 type UserRequest = Request & {
   identity: { userId: string; appId: string; sessionId: string };
@@ -29,6 +30,7 @@ export class SessionsController {
   ) {}
 
   @Get()
+  @RequireAppScopes('sessions:read:self')
   async listOwned(
     @Req() request: UserRequest,
     @Query() query: ListSessionsQueryDto,
@@ -44,6 +46,7 @@ export class SessionsController {
   }
 
   @Get(':sessionId')
+  @RequireAppScopes('sessions:read:self')
   async getOwned(
     @Req() request: UserRequest,
     @Param('sessionId') sessionId: string,
@@ -64,6 +67,7 @@ export class SessionsController {
   }
 
   @Delete()
+  @RequireAppScopes('sessions:revoke:self')
   async revokeAll(@Req() request: UserRequest) {
     const result = await this.revoke.execute({
       userId: request.identity.userId,
@@ -78,6 +82,7 @@ export class SessionsController {
   }
 
   @Delete(':sessionId')
+  @RequireAppScopes('sessions:revoke:self')
   async revokeOne(
     @Req() request: UserRequest,
     @Param('sessionId') sessionId: string,

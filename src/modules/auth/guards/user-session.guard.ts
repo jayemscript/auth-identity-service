@@ -9,6 +9,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { DataSource } from 'typeorm';
 import type { Request } from 'express';
+import { verifyAccessToken } from '../../../common/security/verify-access-token';
 
 @Injectable()
 export class UserSessionGuard implements CanActivate {
@@ -31,16 +32,11 @@ export class UserSessionGuard implements CanActivate {
       );
     let claims: { sub: string; sid: string; aud: string; typ: string };
     try {
-      claims = await this.jwt.verifyAsync<{
-        sub: string;
-        sid: string;
-        aud: string;
-        typ: string;
-      }>(token, {
-        secret: process.env.JWT_SECRET,
-        algorithms: ['HS256'],
-        issuer: 'auth-identity-service',
-      });
+      claims = (await verifyAccessToken(
+        token,
+        this.jwt,
+        this.dataSource,
+      )) as typeof claims;
     } catch {
       throw new UnauthorizedException(
         'Your access token is invalid or expired. Please sign in again.',

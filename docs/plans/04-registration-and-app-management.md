@@ -10,6 +10,8 @@ Public registration creates one automatic grant for the registering app with sou
 
 ## App management and access
 
+Each consuming backend uses an app-bound credential from `apps.application_credentials`, sent as `X-API-Key: <credential-id>.<secret>` with the matching `X-App-Id`. Store only a SHA-256 hash of the random secret, return the secret once during CLI issuance, and check route scopes in the API key guard. Keep the shared `API_KEY` for `/health` only. Issue replacement credentials before revoking the old key. Credential scopes authorize calls to this identity service and do not represent business roles.
+
 - The SuperAdmin can list apps at `/v1/admin/apps` and read one at `/v1/admin/apps/{appId}`. App records are deployment-owned and append-only: bootstrap may insert a new app, while the API and database reject app updates and deletes. Keep each slug stable because consumers send it in `X-App-Id`; add a new slug instead of changing an existing app identity. The designated admin app and its SuperAdmin grant remain protected.
 - Use `PUT` and `DELETE` at `/v1/admin/apps/{appId}/users/{userId}/access` to grant and revoke access. Keep one grant per user-app pair. Use `PATCH /v1/admin/users/{userId}/config` for `canCreateUsers` and the nullable session limit override. Registration requests cannot set administrative fields.
 - Revoke affected sessions in the same transaction as a grant revocation. Coordinate the writes with login and refresh so they cannot leave a usable session after access is removed. App rows cannot be disabled through the V1 API.

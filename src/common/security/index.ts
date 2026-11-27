@@ -7,6 +7,8 @@ export function verifyApiKey(expected: string, supplied?: string): boolean {
   return timingSafeEqual(expectedHash, suppliedHash);
 }
 
+export * from './app-scopes';
+
 export function normalizeIdentifier(identifier: string): string {
   return identifier.trim().toLowerCase();
 }

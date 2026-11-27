@@ -1,7 +1,7 @@
 import { ConflictException, ForbiddenException } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 jest.mock('../../../auth/better-auth', () => ({
-  auth: { api: { signInEmail: jest.fn() } },
+  auth: { api: { signInEmail: jest.fn(), signJWT: jest.fn() } },
 }));
 import { auth } from '../../../auth/better-auth';
 import { LoginService } from './login.service';
@@ -26,6 +26,9 @@ describe('LoginService', () => {
       token: 'framework-token',
     } as never);
     dataSource.query.mockResolvedValue([{ id: 'session-1' }]);
+    (auth.api as unknown as { signJWT: jest.Mock }).signJWT.mockResolvedValue({
+      token: 'access-token',
+    });
     tx.query
       .mockResolvedValueOnce([{ id: 'app-1', policy: {} }])
       .mockResolvedValueOnce([{ id: 'grant-1' }])
@@ -35,9 +38,7 @@ describe('LoginService', () => {
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([{ count: 0 }])
       .mockResolvedValueOnce([]);
-    jwt.signAsync
-      .mockResolvedValueOnce('access-token')
-      .mockResolvedValueOnce('refresh-token');
+    jwt.signAsync.mockResolvedValueOnce('refresh-token');
     service = new LoginService(
       jwt as never,
       dataSource as unknown as DataSource,

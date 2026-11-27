@@ -9,6 +9,7 @@ import { JwtService } from '@nestjs/jwt';
 import { DataSource } from 'typeorm';
 import { auth } from '../../../auth/better-auth';
 import { normalizeIdentifier } from '../../../common/security';
+import { signAccessToken } from '../../../common/security/sign-access-token';
 import { AuthTokenPairResponseDto } from '../dtos';
 
 export interface LoginExecutionResult extends AuthTokenPairResponseDto {
@@ -187,15 +188,12 @@ export class LoginService {
     return Object.assign(new AuthTokenPairResponseDto(), {
       userName: result.user.name,
       sessionId,
-      accessToken: await this.jwt.signAsync(
-        { ...claims, typ: 'access' },
-        {
-          secret: process.env.JWT_SECRET,
-          algorithm: 'HS256',
-          expiresIn: accessLifetime,
-          issuer: 'auth-identity-service',
-        },
-      ),
+      accessToken: await signAccessToken({
+        ...claims,
+        typ: 'access',
+        exp: accessExpiresAt,
+        iss: 'auth-identity-service',
+      }),
       refreshToken: await this.jwt.signAsync(
         { ...claims, typ: 'refresh', generation: 0 },
         {
