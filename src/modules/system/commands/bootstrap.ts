@@ -8,7 +8,6 @@ import { findApplicationPolicy } from '../../apps/repositories/application-polic
 
 interface SeedInput {
   runKey: string;
-  adminAppSlug: string;
   settings?: Record<string, unknown>;
   apps: Array<{
     slug: string;
@@ -43,9 +42,8 @@ async function main(): Promise<void> {
   const path = process.argv[2];
   if (!path) throw new Error('Usage: make bootstrap SEED_FILE=path');
   const seed = JSON.parse(await readFile(path, 'utf8')) as SeedInput;
-  if (!seed.runKey || !seed.adminAppSlug || !seed.apps?.length)
-    throw new Error('Seed requires runKey, adminAppSlug, and apps');
-  const adminAppSlug = seed.adminAppSlug.trim().toLowerCase();
+  if (!seed.runKey || !seed.apps?.length)
+    throw new Error('Seed requires runKey and apps');
   const adminEmail = process.env.SUPERADMINEMAIL?.trim().toLowerCase();
   const adminPassword = process.env.SUPERADMINPASSWORD;
   if (!adminEmail)
@@ -60,8 +58,6 @@ async function main(): Promise<void> {
     throw new Error(
       'SUPERADMINPASSWORD must be generated, at least 8 characters, and not a placeholder',
     );
-  if (!seed.apps.some((app) => app.slug.trim().toLowerCase() === adminAppSlug))
-    throw new Error('adminAppSlug must reference a seeded app');
   const normalizedSlugs = seed.apps.map((app) => app.slug.trim().toLowerCase());
   if (new Set(normalizedSlugs).size !== normalizedSlugs.length)
     throw new Error('App slugs must be unique');
@@ -71,6 +67,7 @@ async function main(): Promise<void> {
     if (!app.name.trim() || !app.clientType.trim())
       throw new Error(`App ${app.slug} requires a name and clientType`);
   }
+  const adminAppSlug = normalizedSlugs[0];
   const people: Array<{
     email: string;
     name: string;
@@ -176,7 +173,7 @@ async function main(): Promise<void> {
         'session.idle_timeout_minutes': 10080,
         'session.max_concurrent': 3,
         ...seed.settings,
-        'administration.app_slug': seed.adminAppSlug.toLowerCase(),
+        'administration.app_slug': adminAppSlug,
       })) {
         await tx.query(
           `INSERT INTO system.settings(id, key, value) VALUES ($1, $2, $3)
@@ -189,7 +186,7 @@ async function main(): Promise<void> {
       );
       if (configuredAdmin?.slug?.toLowerCase() !== adminAppSlug)
         throw new Error(
-          'The designated admin app cannot change after bootstrap. Keep adminAppSlug unchanged.',
+          `The designated admin app cannot change after bootstrap. Keep ${adminAppSlug} as the first app in the seed.`,
         );
 
       const [existingRun] = await tx.query(

@@ -25,7 +25,7 @@ make bootstrap SEED_FILE=docs/examples/bootstrap.seed.example.json
 make dev
 ```
 
-Set `SUPERADMINEMAIL`, `SUPERADMINPASSWORD`, and `MOCK_USERS_PASSWORD` in `.env` first. To use your own seed, copy and edit the example JSON, then pass its path to `SEED_FILE`. App slugs, names, client types, and policies are immutable after insertion; add a new app as a new seed entry with a new slug. Use `make project-settings SETTINGS_FILE=docs/examples/project-settings.example.json` to set deployment defaults.
+Set `SUPERADMINEMAIL`, `SUPERADMINPASSWORD`, and `MOCK_USERS_PASSWORD` in `.env` first. To use your own seed, copy and edit the example JSON, then pass its path to `SEED_FILE`. The first app in the seed is the administration app and receives the SuperAdmin account, so keep it first on future runs. App slugs, names, client types, and policies are immutable after insertion; add a new app as a new seed entry with a new slug. Use `make project-settings SETTINGS_FILE=docs/examples/project-settings.example.json` to set deployment defaults.
 
 ## Issue a credential for a client backend
 

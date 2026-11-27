@@ -1,6 +1,5 @@
 {
   "runKey": "v1-local-development-seed-001",
-  "adminAppSlug": "internal-admin",
   "apps": [
     {
       "name": "Internal Admin",
