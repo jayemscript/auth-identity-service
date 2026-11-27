@@ -19,7 +19,8 @@ export function validateProjectSettings(settings: Record<string, unknown>): void
       definition.valueType === 'string_set' &&
       (!Array.isArray(value) ||
         value.length === 0 ||
-        value.some((entry) => !allowed?.includes(entry)))
+        value.some((entry) => !allowed?.includes(entry)) ||
+        (key === 'auth.methods' && value.includes('any') && value.length > 1))
     )
       throw new Error(`${key} must contain supported values`);
   }

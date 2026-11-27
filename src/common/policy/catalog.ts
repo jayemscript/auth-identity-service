@@ -38,12 +38,12 @@ export const POLICY_DEFINITIONS: readonly PolicyDefinition[] = [
   },
   {
     key: 'auth.methods',
-    // These are selectable catalog values. Runtime support currently covers password only.
+    // Consumers interpret "any" according to the methods their app and client support.
     valueType: 'string_set',
     scope: 'both',
     defaultValue: ['password'],
     availability: 'available',
-    allowedValues: ['password', 'magic_link', 'passkey', 'oauth'],
+    allowedValues: ['password', 'magic_link', 'passkey', 'oauth', 'any'],
   },
   {
     key: 'mfa.required',

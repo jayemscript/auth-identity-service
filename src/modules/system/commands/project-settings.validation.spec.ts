@@ -15,19 +15,20 @@ describe('auth.methods policy catalog', () => {
     const seededValues = migration.match(/SELECT 'auth\.methods', method\.value\s+FROM jsonb_array_elements\('(\[[^']+\])'::jsonb\) AS method\(value\)/);
 
     expect(definition?.defaultValue).toEqual(['password']);
-    expect(definition?.allowedValues).toEqual(['password', 'magic_link', 'passkey', 'oauth']);
+    expect(definition?.allowedValues).toEqual(['password', 'magic_link', 'passkey', 'oauth', 'any']);
     expect(seededDefinition).not.toBeNull();
     expect(seededValues).not.toBeNull();
     expect(JSON.parse(seededDefinition![1])).toEqual(definition?.defaultValue);
     expect(JSON.parse(seededValues![1])).toEqual(definition?.allowedValues);
   });
 
-  it('accepts concrete methods and rejects wildcard or unknown names', () => {
+  it('accepts concrete methods and any, and rejects ambiguous or unknown names', () => {
     expect(() => validateProjectSettings({ 'auth.methods': ['password'] })).not.toThrow();
     expect(() =>
       validateProjectSettings({ 'auth.methods': ['password', 'magic_link'] }),
     ).not.toThrow();
-    expect(() => validateProjectSettings({ 'auth.methods': ['any'] })).toThrow(
+    expect(() => validateProjectSettings({ 'auth.methods': ['any'] })).not.toThrow();
+    expect(() => validateProjectSettings({ 'auth.methods': ['any', 'password'] })).toThrow(
       'auth.methods must contain supported values',
     );
     expect(() => validateProjectSettings({ 'auth.methods': ['unknown'] })).toThrow(
