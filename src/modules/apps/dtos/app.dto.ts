@@ -5,6 +5,7 @@ export class ApplicationResponseDto {
   clientType!: string;
   status!: string;
   policy!: Record<string, unknown>;
+  effectivePolicy!: Record<string, unknown>;
   createdAt!: Date;
   updatedAt!: Date;
 }

@@ -140,6 +140,7 @@ function createOptions(): BetterAuthOptions {
       jwt({
         schema: {
           jwks: {
+            modelName: 'auth.jwks',
             fields: {
               publicKey: 'public_key',
               privateKey: 'private_key',

@@ -1,6 +1,11 @@
 {
-  "registration.mode": "public",
+  "registration.mode": "disabled",
+  "account.approval": "auto_approve",
+  "auth.methods": ["password"],
+  "mfa.required": false,
+  "session.overflow_policy": "block_new",
+  "token.refresh_rotation": "rotate",
   "email_verification.required": false,
-  "session.idle_timeout_seconds": 604800,
+  "session.idle_timeout_minutes": 10080,
   "session.max_concurrent": 3
 }

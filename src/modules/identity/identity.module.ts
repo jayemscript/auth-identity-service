@@ -10,9 +10,10 @@ import { ApiKeyGuard } from '../auth/guards/api-key.guard';
 import { AdminAccessController } from './controllers/admin-access.controller';
 import { ManageAccessService } from './services/manage-access.service';
 import { UserAccessRepository } from './repositories/user-access.repository';
+import { PolicyModule } from '../policies';
 
 @Module({
-  imports: [JwtModule.register({})],
+  imports: [JwtModule.register({}), PolicyModule],
   controllers: [
     RegistrationController,
     AppAccessController,

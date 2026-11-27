@@ -1,6 +1,6 @@
 # Registration
 
-Both endpoints create an identity and grant access to the app identified by `X-App-Id`. Public registration works only when that app’s registration mode is `public`; internal registration requires a signed-in actor who has permission to create users.
+Both endpoints create an identity and grant access to the app identified by `X-App-Id`. Registration mode resolves from the app override, then deployment settings, then the policy catalog default. `public` permits self-service registration, `operator_only` permits authorized operator creation, `hybrid` permits both, `invite_only` blocks both endpoints until invitation redemption is implemented, and `disabled` blocks registration.
 
 ## Public registration
 
@@ -18,7 +18,7 @@ Headers: `X-API-Key: {{apiKey}}`, `X-App-Id: {{appSlug}}`, `Content-Type: applic
 }
 ```
 
-`username`, `phone`, and `verifiedEmail` are optional; password length is 8–128 characters. `verifiedEmail` is only accepted as proof when it exactly matches the email and the consuming app requires email verification, so only send it after your backend has verified ownership.
+`username`, `phone`, and `verifiedEmail` are optional; password length is 8–128 characters. When the effective account approval policy requires email verification, both registration routes require `verifiedEmail` to match the normalized email. Send it only after your backend has verified ownership.
 
 Example response:
 

@@ -2,12 +2,16 @@ import { Injectable } from '@nestjs/common';
 import { DataSource, EntityManager } from 'typeorm';
 import { ApplicationMapper, ApplicationRow } from '../mappers/application.mapper';
 import { findApplicationPolicies } from './application-policy.repository';
+import { PolicyResolverService } from '../../policies';
 
 type DbManager = Pick<EntityManager, 'query'>;
 
 @Injectable()
 export class ApplicationRepository {
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(
+    private readonly dataSource: DataSource,
+    private readonly policyResolver: PolicyResolverService,
+  ) {}
 
   async findAll(manager: DbManager = this.dataSource.manager) {
     const rows = (await manager.query(
@@ -17,9 +21,13 @@ export class ApplicationRepository {
       manager,
       rows.map((row) => row.id),
     );
-    return rows.map((row) =>
-      ApplicationMapper.toResponse({ ...row, policy: policies.get(row.id) ?? {} }),
-    );
+    return Promise.all(rows.map(async (row) =>
+      ApplicationMapper.toResponse({
+        ...row,
+        policy: policies.get(row.id) ?? {},
+        effective_policy: await this.policyResolver.execute(manager, row.id),
+      }),
+    ));
   }
 
   async findByIdOrSlug(
@@ -35,6 +43,7 @@ export class ApplicationRepository {
     return ApplicationMapper.toResponse({
       ...row,
       policy: policies.get(row.id) ?? {},
+      effective_policy: await this.policyResolver.execute(manager, row.id),
     } as ApplicationRow);
   }
 }

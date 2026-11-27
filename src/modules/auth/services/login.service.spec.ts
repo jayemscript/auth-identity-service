@@ -5,6 +5,7 @@ jest.mock('../../../auth/better-auth', () => ({
 }));
 import { auth } from '../../../auth/better-auth';
 import { LoginService } from './login.service';
+import { PolicyResolverService } from '../../policies';
 
 describe('LoginService', () => {
   const jwt = { signAsync: jest.fn() };
@@ -32,17 +33,18 @@ describe('LoginService', () => {
     tx.query
       .mockResolvedValueOnce([{ id: 'app-1' }])
       .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
       .mockResolvedValueOnce([{ id: 'grant-1' }])
       .mockResolvedValueOnce([
         { status: 'active', is_banned: false, session_limit_override: null },
       ])
-      .mockResolvedValueOnce([])
       .mockResolvedValueOnce([{ count: 0 }])
       .mockResolvedValueOnce([]);
     jwt.signAsync.mockResolvedValueOnce('refresh-token');
     service = new LoginService(
       jwt as never,
       dataSource as unknown as DataSource,
+      new PolicyResolverService(),
     );
   });
 
@@ -92,13 +94,13 @@ describe('LoginService', () => {
     tx.query
       .mockResolvedValueOnce([{ id: 'app-1' }])
       .mockResolvedValueOnce([
-        { key: 'maxConcurrentSessions', value: 1 },
+        { key: 'session.max_concurrent', value: 1 },
       ])
+      .mockResolvedValueOnce([])
       .mockResolvedValueOnce([{ id: 'grant-1' }])
       .mockResolvedValueOnce([
         { status: 'active', is_banned: false, session_limit_override: null },
       ])
-      .mockResolvedValueOnce([])
       .mockResolvedValueOnce([{ count: 1 }]);
     let thrown: unknown;
     try {
@@ -126,6 +128,7 @@ describe('LoginService', () => {
     tx.query.mockReset();
     tx.query
       .mockResolvedValueOnce([{ id: 'app-1' }])
+      .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([]);
 

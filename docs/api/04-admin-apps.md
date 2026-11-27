@@ -6,7 +6,7 @@ These read-only routes require the shared API key and a SuperAdmin access token 
 
 `GET {{baseUrl}}/v1/admin/apps`
 
-Returns the consuming apps configured for this deployment. App records are added through the bootstrap seed; this API does not create, update, disable, or delete them.
+Returns the consuming apps configured for this deployment. `policy` contains explicit app overrides, while `effectivePolicy` contains the resolved values after app overrides, deployment defaults, and catalog defaults. App records and overrides are added through the bootstrap seed; this API does not create, update, disable, or delete them.
 
 ## Get one app
 

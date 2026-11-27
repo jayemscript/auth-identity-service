@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { readFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { AppDataSource } from '../../../database/data-source';
+import { POLICY_DEFINITIONS } from '../../../common/policy/catalog';
 
 async function main(): Promise<void> {
   const path = process.argv[2];
@@ -10,39 +11,25 @@ async function main(): Promise<void> {
     string,
     unknown
   >;
-  const allowedKeys = new Set([
-    'registration.mode',
-    'email_verification.required',
-    'session.idle_timeout_seconds',
-    'session.max_concurrent',
-  ]);
-  for (const key of Object.keys(settings)) {
-    if (!allowedKeys.has(key))
-      throw new Error(`Unsupported project setting ${key}`);
+  const definitions = new Map(
+    POLICY_DEFINITIONS.map((definition) => [definition.key, definition]),
+  );
+  for (const [key, value] of Object.entries(settings)) {
+    const definition = definitions.get(key);
+    if (!definition || definition.availability === 'unavailable')
+      throw new Error(`Unsupported or unavailable project setting ${key}`);
+    const allowed = definition.allowedValues;
+    if (allowed && definition.valueType !== 'string_set' && !allowed.includes(value))
+      throw new Error(`Unsupported value for project setting ${key}`);
+    if (definition.valueType === 'number' && !Number.isInteger(value))
+      throw new Error(`${key} must be an integer`);
+    if (definition.valueType === 'boolean' && typeof value !== 'boolean')
+      throw new Error(`${key} must be boolean`);
+    if (definition.valueType === 'string_set' && (!Array.isArray(value) || value.length === 0 || value.some((entry) => !allowed?.includes(entry))))
+      throw new Error(`${key} must contain supported values`);
   }
-  const defaults: Record<string, unknown> = {
-    'registration.mode': 'public',
-    'email_verification.required': false,
-    'session.idle_timeout_seconds': 604800,
-    'session.max_concurrent': 3,
-  };
-  const merged = { ...defaults, ...settings };
-  if (
-    !['public', 'operator_only', 'disabled'].includes(
-      String(merged['registration.mode']),
-    )
-  )
-    throw new Error('Invalid registration.mode');
-  if (typeof merged['email_verification.required'] !== 'boolean')
-    throw new Error('email_verification.required must be boolean');
-  for (const key of [
-    'session.idle_timeout_seconds',
-    'session.max_concurrent',
-  ]) {
-    if (!Number.isInteger(merged[key]) || Number(merged[key]) < 1)
-      throw new Error(`${key} must be a positive integer`);
-  }
-  const idle = Number(merged['session.idle_timeout_seconds']);
+  const idleMinutes = Number(settings['session.idle_timeout_minutes'] ?? 10080);
+  const idle = idleMinutes === 0 ? Number(process.env.JWT_REFRESH_EXPIRATION ?? 2592000) : idleMinutes * 60;
   const access = Number(process.env.JWT_ACCESS_EXPIRATION ?? 900);
   const hard = Number(process.env.JWT_REFRESH_EXPIRATION ?? 2592000);
   if (idle < access || idle > hard)
@@ -52,7 +39,7 @@ async function main(): Promise<void> {
   await AppDataSource.initialize();
   try {
     await AppDataSource.transaction(async (tx) => {
-      for (const [key, value] of Object.entries(merged)) {
+      for (const [key, value] of Object.entries(settings)) {
         await tx.query(
           `INSERT INTO system.settings(id,key,value) VALUES ($1,$2,$3) ON CONFLICT (key) WHERE application_id IS NULL DO UPDATE SET value = EXCLUDED.value, updated_at = now()`,
           [randomUUID(), key, JSON.stringify(value)],

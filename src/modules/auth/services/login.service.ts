@@ -11,7 +11,7 @@ import { auth } from '../../../auth/better-auth';
 import { normalizeIdentifier } from '../../../common/security';
 import { signAccessToken } from '../../../common/security/sign-access-token';
 import { AuthTokenPairResponseDto } from '../dtos';
-import { findApplicationPolicy } from '../../apps/repositories/application-policy.repository';
+import { PolicyResolverService } from '../../policies';
 
 export interface LoginExecutionResult extends AuthTokenPairResponseDto {
   userName: string;
@@ -22,6 +22,7 @@ export class LoginService {
   constructor(
     private readonly jwt: JwtService,
     private readonly dataSource: DataSource,
+    private readonly policyResolver: PolicyResolverService,
   ) {}
 
   async execute(input: {
@@ -96,7 +97,7 @@ export class LoginService {
           throw new UnauthorizedException(
             'This app could not be found or is currently unavailable.',
           );
-        const appPolicy = await findApplicationPolicy(tx, app.id);
+        const appPolicy = await this.policyResolver.execute(tx, app.id);
         const [grant] = await tx.query(
           `SELECT id FROM identity.user_application_access WHERE user_id = $1 AND application_id = $2 AND status = 'active' FOR UPDATE`,
           [result.user.id, app.id],
@@ -108,16 +109,6 @@ export class LoginService {
         const [config] = await tx.query(
           `SELECT status, is_banned, ban_expires_at, session_limit_override FROM identity.user_configs WHERE user_id = $1`,
           [result.user.id],
-        );
-        const configuredSettings = await tx.query(
-          `SELECT key, value FROM system.settings WHERE application_id IS NULL OR application_id = $1 ORDER BY application_id NULLS FIRST`,
-          [app.id],
-        );
-        const resolvedSettings = new Map(
-          configuredSettings.map((row: { key: string; value: unknown }) => [
-            row.key,
-            row.value,
-          ]),
         );
         if (
           !config ||
@@ -132,9 +123,7 @@ export class LoginService {
         }
         const cap = Number(
           config.session_limit_override ??
-            appPolicy.maxConcurrentSessions ??
-            resolvedSettings.get('session.max_concurrent') ??
-            3,
+          Number(appPolicy['session.max_concurrent']),
         );
         const [{ count }] = await tx.query(
           `SELECT count(*)::int AS count FROM auth.sessions WHERE user_id = $1 AND application_id = $2 AND revoked_at IS NULL AND expires_at > now() AND hard_expires_at > now()`,
@@ -146,11 +135,13 @@ export class LoginService {
             message:
               'You have reached the maximum number of active sessions for this app. End another session before signing in again.',
           });
-        const idleSeconds = Number(
-          appPolicy.idleTimeoutSeconds ??
-            resolvedSettings.get('session.idle_timeout_seconds') ??
-            604800,
+        const idleTimeoutMinutes = Number(
+          appPolicy['session.idle_timeout_minutes'],
         );
+        const idleSeconds =
+          idleTimeoutMinutes === 0
+            ? Number(process.env.JWT_REFRESH_EXPIRATION ?? 2592000)
+            : idleTimeoutMinutes * 60;
         const resolvedIdleExpiry = new Date(
           Math.min(
             nowDate.getTime() + idleSeconds * 1000,

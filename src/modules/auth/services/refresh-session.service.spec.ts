@@ -5,6 +5,7 @@ jest.mock('../../../auth/better-auth', () => ({
   auth: { api: { signJWT: jest.fn().mockResolvedValue({ token: 'new-access' }) } },
 }));
 import { RefreshSessionService } from './refresh-session.service';
+import { PolicyResolverService } from '../../policies';
 
 describe('RefreshSessionService', () => {
   const verifyAsync = jest.fn();
@@ -46,6 +47,7 @@ describe('RefreshSessionService', () => {
     service = new RefreshSessionService(
       { verifyAsync, signAsync } as unknown as JwtService,
       dataSource as unknown as DataSource,
+      new PolicyResolverService(),
     );
   });
 

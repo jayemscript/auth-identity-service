@@ -7,7 +7,7 @@ import {
 import { DataSource } from 'typeorm';
 import { auth } from '../../../auth/better-auth';
 import { withBetterAuthTransaction } from '../../../common/database';
-import { findApplicationPolicy } from '../../apps/repositories/application-policy.repository';
+import { PolicyResolverService } from '../../policies';
 import { RegistrationResponseDto } from '../dtos';
 
 export interface RegisterUserInput {
@@ -48,7 +48,10 @@ function isDuplicateIdentityError(error: unknown): boolean {
 
 @Injectable()
 export class RegisterUserService {
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(
+    private readonly dataSource: DataSource,
+    private readonly policyResolver: PolicyResolverService,
+  ) {}
 
   async execute(input: RegisterUserInput): Promise<RegistrationResponseDto> {
     const manager = this.dataSource.manager;
@@ -60,24 +63,12 @@ export class RegisterUserService {
       throw new ForbiddenException(
         'This app could not be found or is currently unavailable.',
       );
-    const appPolicy = await findApplicationPolicy(manager, app[0].id);
-    const projectAndAppSettings = await manager.query(
-      `SELECT key, value FROM system.settings WHERE application_id IS NULL OR application_id = $1 ORDER BY application_id NULLS FIRST`,
-      [app[0].id],
-    );
-    const resolvedSettings = new Map(
-      projectAndAppSettings.map((row: { key: string; value: unknown }) => [
-        row.key,
-        row.value,
-      ]),
-    );
-    const mode =
-      appPolicy.registrationMode ??
-      resolvedSettings.get('registration.mode') ??
-      'public';
+    const policy = await this.policyResolver.execute(manager, app[0].id);
+    const mode = policy['registration.mode'];
     if (
       mode === 'disabled' ||
-      (input.source === 'public_registration' && mode !== 'public')
+      (input.source === 'public_registration' && !['public', 'hybrid'].includes(String(mode))) ||
+      (input.source === 'operator' && !['operator_only', 'hybrid'].includes(String(mode)))
     ) {
       throw new ForbiddenException(
         'Registration is not available for this app. Contact its administrator to request access.',
@@ -100,11 +91,8 @@ export class RegisterUserService {
           'Your account is not allowed to create users in this app.',
         );
     }
-    const verificationRequired = Boolean(
-      appPolicy.emailVerificationRequired ??
-      resolvedSettings.get('email_verification.required') ??
-      false,
-    );
+    const verificationRequired = policy['account.approval'] === 'email_verification' ||
+      Boolean(policy['email_verification.required']);
     const verified =
       verificationRequired &&
       input.verifiedEmail?.trim().toLowerCase() ===

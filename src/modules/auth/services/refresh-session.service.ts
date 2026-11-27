@@ -3,13 +3,14 @@ import { JwtService } from '@nestjs/jwt';
 import { DataSource } from 'typeorm';
 import { AuthTokenPairResponseDto } from '../dtos';
 import { signAccessToken } from '../../../common/security/sign-access-token';
-import { findApplicationPolicy } from '../../apps/repositories/application-policy.repository';
+import { PolicyResolverService } from '../../policies';
 
 @Injectable()
 export class RefreshSessionService {
   constructor(
     private readonly jwt: JwtService,
     private readonly dataSource: DataSource,
+    private readonly policyResolver: PolicyResolverService,
   ) {}
 
   async execute(
@@ -61,26 +62,13 @@ export class RefreshSessionService {
             'This refresh token is no longer valid. Please sign in again.',
           );
         }
-        const appPolicy = await findApplicationPolicy(tx, session.application_id);
-        const settings = await tx.query(
-          `SELECT key, value FROM system.settings WHERE application_id IS NULL OR application_id = $1 ORDER BY application_id NULLS FIRST`,
-          [session.application_id],
-        );
-        const resolvedSettings = new Map(
-          settings.map((row: { key: string; value: unknown }) => [
-            row.key,
-            row.value,
-          ]),
-        );
+        const appPolicy = await this.policyResolver.execute(tx, session.application_id);
+        const idleTimeoutMinutes = Number(appPolicy['session.idle_timeout_minutes']);
         const idle = new Date(
           Math.min(
-            now.getTime() +
-              Number(
-                appPolicy.idleTimeoutSeconds ??
-                  resolvedSettings.get('session.idle_timeout_seconds') ??
-                  604800,
-              ) *
-                1000,
+            idleTimeoutMinutes === 0
+              ? new Date(session.hardExpiry).getTime()
+              : now.getTime() + idleTimeoutMinutes * 60_000,
             new Date(session.hardExpiry).getTime(),
           ),
         );
