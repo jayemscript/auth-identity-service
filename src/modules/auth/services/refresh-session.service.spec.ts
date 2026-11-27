@@ -29,8 +29,9 @@ describe('RefreshSessionService', () => {
       generation: 2,
     });
     signAsync.mockResolvedValueOnce('new-refresh');
-    transactionQuery
-      .mockResolvedValueOnce([
+    transactionQuery.mockImplementation((sql: string) => Promise.resolve(
+      sql.includes('FROM apps.applications') ? [{ id: 'app-1' }] :
+      sql.includes('FROM auth.sessions') ? [
         {
           generation: 2,
           idleExpiry: new Date(Date.now() + 60_000),
@@ -38,16 +39,12 @@ describe('RefreshSessionService', () => {
           application_id: 'app-1',
           slug: 'shop',
         },
-      ])
-      .mockResolvedValueOnce([
-        { key: 'idleTimeoutSeconds', value: 60 },
-      ])
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([]);
+      ] : sql.includes('FROM apps.application_policy_entries') ? [{ key: 'session.idle_timeout_minutes', value: 60 }] : []));
     service = new RefreshSessionService(
       { verifyAsync, signAsync } as unknown as JwtService,
       dataSource as unknown as DataSource,
       new PolicyResolverService(),
+      { enforce: jest.fn().mockResolvedValue('ok') } as never,
     );
   });
 
@@ -58,8 +55,7 @@ describe('RefreshSessionService', () => {
       refreshToken: 'new-refresh',
     });
     expect(dataSource.transaction).toHaveBeenCalledTimes(1);
-    expect(transactionQuery).toHaveBeenCalledTimes(4);
-    expect(transactionQuery.mock.calls[2][0]).toContain('system.settings');
+    expect(transactionQuery.mock.calls.some(([sql]) => sql.includes('system.settings'))).toBe(true);
     expect(signAsync.mock.calls[0][0]).toMatchObject({
       typ: 'refresh',
       generation: 3,

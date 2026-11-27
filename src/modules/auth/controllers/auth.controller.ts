@@ -55,7 +55,7 @@ export class AuthController {
       throw new BadRequestException(
         'Choose an app by including its slug in the X-App-Id header.',
       );
-    const result = await this.verifyToken.execute({ ...body, appSlug });
+    const result = await this.verifyToken.execute({ ...body, appSlug, requestIp: request.ip });
     return successResponse(
       result.active
         ? 'This token is active.'
@@ -75,6 +75,7 @@ export class AuthController {
     const result = await this.refreshSession.execute(
       body.refreshToken,
       appSlug,
+      request.ip,
     );
     return successResponse('Your session has been refreshed.', result);
   }

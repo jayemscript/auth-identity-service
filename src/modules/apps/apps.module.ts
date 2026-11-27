@@ -6,9 +6,10 @@ import { AdminAppsController } from './controllers/admin-apps.controller';
 import { ReadAppsService } from './services/read-apps.service';
 import { ApplicationRepository } from './repositories/application.repository';
 import { PolicyModule } from '../policies';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
-  imports: [JwtModule.register({}), PolicyModule],
+  imports: [JwtModule.register({}), PolicyModule, AuthModule],
   controllers: [AdminAppsController],
   providers: [
     ApiKeyGuard,

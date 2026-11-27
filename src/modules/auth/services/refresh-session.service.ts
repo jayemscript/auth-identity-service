@@ -4,6 +4,7 @@ import { DataSource } from 'typeorm';
 import { AuthTokenPairResponseDto } from '../dtos';
 import { signAccessToken } from '../../../common/security/sign-access-token';
 import { PolicyResolverService } from '../../policies';
+import { SessionIpBindingService } from './session-ip-binding.service';
 
 @Injectable()
 export class RefreshSessionService {
@@ -11,11 +12,13 @@ export class RefreshSessionService {
     private readonly jwt: JwtService,
     private readonly dataSource: DataSource,
     private readonly policyResolver: PolicyResolverService,
+    private readonly ipBinding: SessionIpBindingService,
   ) {}
 
   async execute(
     token: string,
     appSlug: string,
+    requestIp?: string,
   ): Promise<AuthTokenPairResponseDto> {
     let claims: {
       sub: string;
@@ -40,14 +43,14 @@ export class RefreshSessionService {
         'This refresh token is invalid or expired. Please sign in again.',
       );
     const now = new Date();
-    const [{ generation, idleExpiry, hardExpiry }] =
+    const [{ generation, idleExpiry, hardExpiry, binding }] =
       await this.dataSource.transaction(async (tx) => {
         await tx.query(
           `SELECT id FROM apps.applications WHERE slug = $1 FOR UPDATE`,
           [appSlug],
         );
         const [session] = await tx.query(
-          `SELECT s.refresh_generation AS generation, s.expires_at AS "idleExpiry", s.hard_expires_at AS "hardExpiry",
+          `SELECT s.refresh_generation AS generation, s.expires_at AS "idleExpiry", s.hard_expires_at AS "hardExpiry", s.ip_address,
            a.id AS application_id, a.slug FROM auth.sessions s JOIN apps.applications a ON a.id = s.application_id
          JOIN identity.user_application_access g ON g.user_id = s.user_id AND g.application_id = a.id AND g.status = 'active'
          JOIN identity.user_configs c ON c.user_id = s.user_id AND c.status = 'active'
@@ -67,6 +70,15 @@ export class RefreshSessionService {
           );
         }
         const appPolicy = await this.policyResolver.execute(tx, session.application_id);
+        const binding = await this.ipBinding.enforce(tx, {
+          sessionId: claims.sid,
+          userId: claims.sub,
+          applicationId: session.application_id,
+          storedIp: session.ip_address,
+          requestIp,
+          policy: appPolicy['session.ip_binding'],
+        });
+        if (binding !== 'ok') return [{ binding }];
         const idleTimeoutMinutes = Number(appPolicy['session.idle_timeout_minutes']);
         const idle = new Date(
           Math.min(
@@ -85,9 +97,11 @@ export class RefreshSessionService {
             generation: session.generation + 1,
             idleExpiry: idle,
             hardExpiry: new Date(session.hardExpiry),
+            binding,
           },
         ];
       });
+    if (binding !== 'ok') throw new UnauthorizedException('This session IP changed or could not be verified. Please sign in again.');
     const nowSeconds = Math.floor(now.getTime() / 1000);
     const accessSeconds = Math.min(
       Number(process.env.JWT_ACCESS_EXPIRATION ?? 900),

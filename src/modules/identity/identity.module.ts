@@ -13,9 +13,10 @@ import { UserAccessRepository } from './repositories/user-access.repository';
 import { PolicyModule } from '../policies';
 import { SecurityModule } from '../security';
 import { EventsModule } from '../events/events.module';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
-  imports: [JwtModule.register({}), PolicyModule, SecurityModule, EventsModule],
+  imports: [JwtModule.register({}), PolicyModule, SecurityModule, EventsModule, AuthModule],
   controllers: [
     RegistrationController,
     AppAccessController,

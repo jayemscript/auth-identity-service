@@ -9,12 +9,16 @@ import { JwtService } from '@nestjs/jwt';
 import { DataSource } from 'typeorm';
 import type { Request } from 'express';
 import { verifyAccessToken } from '../../../common/security/verify-access-token';
+import { PolicyResolverService } from '../../policies/policy-resolver.service';
+import { SessionIpBindingService } from '../services/session-ip-binding.service';
 
 @Injectable()
 export class SuperAdminGuard implements CanActivate {
   constructor(
     private readonly jwt: JwtService,
     private readonly dataSource: DataSource,
+    private readonly policyResolver: PolicyResolverService,
+    private readonly ipBinding: SessionIpBindingService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -51,7 +55,7 @@ export class SuperAdminGuard implements CanActivate {
       `SELECT value #>> '{}' AS slug FROM system.settings WHERE key = 'administration.app_slug' AND application_id IS NULL`,
     );
     const [user] = await this.dataSource.query(
-      `SELECT 1 FROM identity.user_configs c JOIN auth.sessions s ON s.user_id = c.user_id
+      `SELECT s.application_id, s.ip_address FROM identity.user_configs c JOIN auth.sessions s ON s.user_id = c.user_id
        JOIN apps.applications a ON a.id = s.application_id
        JOIN identity.user_application_access g ON g.user_id = c.user_id AND g.application_id = a.id
        WHERE c.user_id = $1 AND c.is_superadmin = true AND s.id = $2 AND s.revoked_at IS NULL
@@ -63,6 +67,18 @@ export class SuperAdminGuard implements CanActivate {
       throw new ForbiddenException(
         'This account is not allowed to manage the service. Sign in with a SuperAdmin account.',
       );
+    const binding = await this.dataSource.transaction(async (tx) => {
+      const policy = await this.policyResolver.execute(tx, user.application_id);
+      return this.ipBinding.enforce(tx, {
+        sessionId: claims.sid,
+        userId: claims.sub,
+        applicationId: user.application_id,
+        storedIp: user.ip_address,
+        requestIp: request.ip,
+        policy: policy['session.ip_binding'],
+      });
+    });
+    if (binding !== 'ok') throw new UnauthorizedException('Your session IP changed or could not be verified. Please sign in again.');
     request.identity = { userId: claims.sub, sessionId: claims.sid, appId: appSlug };
     return true;
   }

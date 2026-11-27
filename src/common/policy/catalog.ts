@@ -99,7 +99,7 @@ export const POLICY_DEFINITIONS: readonly PolicyDefinition[] = [
   },
   {
     key: 'session.overflow_policy',
-    // Login revokes sessions by creation time or last refresh when an app reaches its cap.
+    // Implemented: Login revokes sessions by creation time or last refresh when an app reaches its cap.
     valueType: 'string',
     scope: 'both',
     defaultValue: 'block_new',
@@ -116,7 +116,7 @@ export const POLICY_DEFINITIONS: readonly PolicyDefinition[] = [
   },
   {
     key: 'session.ip_binding',
-    // Catalog only: session IP binding and change handling are not implemented.
+    // Partial: strict_revoke is enforced. warn_on_change alerts are not implemented.
     valueType: 'string',
     scope: 'both',
     defaultValue: 'off',

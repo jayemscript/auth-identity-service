@@ -62,6 +62,10 @@ When the app’s active-session limit is reached, `session.overflow_policy` cont
 
 Live token verification and protected service routes reject evicted sessions immediately. Backends that verify access-token signatures offline cannot see a revocation until the token expires, so use live verification when immediate revocation matters.
 
+Apps can set `session.ip_binding` to `strict_revoke` to bind each session to the client IP recorded at login. A later request from a different IP revokes that session and is rejected. A session created before IP binding, or one without a valid recorded IP, is revoked on its first otherwise valid request with a usable IP. Apps using this policy must provide a client IP on login. Configure `TRUST_PROXY_HOPS` for the actual network path and have the trusted BFF overwrite forwarded IP headers. Network changes can require the user to sign in again. `off` remains the default. `warn_on_change` does not yet send alerts.
+
+Offline JWT signature checks cannot detect IP changes or session revocation. Use live `/v1/auth/verify` for decisions that must enforce IP binding.
+
 ## Logout
 
 `POST {{baseUrl}}/v1/auth/logout`

@@ -4,18 +4,23 @@ import { DataSource } from 'typeorm';
 import { sessionIsActive } from '../../../common/security';
 import { VerifyTokenResponseDto } from '../dtos';
 import { verifyAccessToken } from '../../../common/security/verify-access-token';
+import { PolicyResolverService } from '../../policies/policy-resolver.service';
+import { SessionIpBindingService } from './session-ip-binding.service';
 
 @Injectable()
 export class VerifyTokenService {
   constructor(
     private readonly jwt: JwtService,
     private readonly dataSource: DataSource,
+    private readonly policyResolver: PolicyResolverService,
+    private readonly ipBinding: SessionIpBindingService,
   ) {}
 
   async execute(input: {
     token: string;
     tokenType: 'access' | 'refresh';
     appSlug: string;
+    requestIp?: string;
   }): Promise<VerifyTokenResponseDto> {
     let claims: {
       sub: string;
@@ -41,7 +46,7 @@ export class VerifyTokenService {
     try {
       const [state] = await this.dataSource.query(
         `SELECT s.user_id AS user_id, s.application_id AS application_id, s.expires_at AS idle_expires_at,
-          s.hard_expires_at AS hard_expires_at, s.revoked_at AS revoked_at, s.refresh_generation AS refresh_generation,
+          s.hard_expires_at AS hard_expires_at, s.revoked_at AS revoked_at, s.refresh_generation AS refresh_generation, s.ip_address,
           a.slug AS app_slug, c.status AS user_status, c.is_banned, c.ban_expires_at, g.status AS grant_status
          FROM auth.sessions s JOIN apps.applications a ON a.id = s.application_id
          JOIN identity.user_configs c ON c.user_id = s.user_id
@@ -66,6 +71,16 @@ export class VerifyTokenService {
           claims.generation !== state.refresh_generation)
       )
         return Object.assign(new VerifyTokenResponseDto(), { active: false });
+      const appPolicy = await this.policyResolver.execute(this.dataSource.manager, state.application_id);
+      const binding = await this.dataSource.transaction((tx) => this.ipBinding.enforce(tx, {
+        sessionId: claims.sid,
+        userId: claims.sub,
+        applicationId: state.application_id,
+        storedIp: state.ip_address,
+        requestIp: input.requestIp,
+        policy: appPolicy['session.ip_binding'],
+      }));
+      if (binding !== 'ok') return Object.assign(new VerifyTokenResponseDto(), { active: false });
       return Object.assign(new VerifyTokenResponseDto(), {
         active: true,
         userId: claims.sub,

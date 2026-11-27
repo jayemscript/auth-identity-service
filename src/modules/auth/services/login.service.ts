@@ -14,6 +14,7 @@ import { AuthTokenPairResponseDto } from '../dtos';
 import { PolicyResolverService } from '../../policies';
 import { SecurityRulesService, LoginAttemptsService, UserDevicesService, AuditLogService, digestLoginSubject } from '../../security';
 import { PublishDomainEventService } from '../../events/services';
+import { normalizeIpAddress } from '../../../common/security/normalize-ip-address';
 
 export interface LoginExecutionResult extends AuthTokenPairResponseDto {
   userName: string;
@@ -134,6 +135,9 @@ export class LoginService {
             'This app could not be found or is currently unavailable.',
           );
         const appPolicy = await this.policyResolver.execute(tx, app.id);
+        const loginIp = normalizeIpAddress(input.ipAddress);
+        if (appPolicy['session.ip_binding'] === 'strict_revoke' && !loginIp)
+          throw new ForbiddenException('A client IP address is required for this app.');
         await this.loginAttempts.recordSuccess(tx, { applicationId: app.id, identifierHash, userId: result.user.id });
         if (input.deviceId) {
           const recognized = await this.devices.recognize(tx, { applicationId: app.id, userId: result.user.id, deviceId: input.deviceId });
@@ -229,8 +233,8 @@ export class LoginService {
           ),
         );
         await tx.query(
-          `UPDATE auth.sessions SET application_id = $1, expires_at = $2, hard_expires_at = $3 WHERE id = $4`,
-          [app.id, resolvedIdleExpiry, hardExpiry, sessionId],
+          `UPDATE auth.sessions SET application_id = $1, expires_at = $2, hard_expires_at = $3, ip_address = $4 WHERE id = $5`,
+          [app.id, resolvedIdleExpiry, hardExpiry, loginIp, sessionId],
         );
         await this.auditLog.execute(tx, { applicationId: app.id, targetUserId: result.user.id, action: 'session.created', changes: { sessionId } });
         await this.publishEvent.execute(tx, { applicationId: app.id, eventType: 'session.created', aggregateType: 'session', aggregateId: sessionId, payload: { sessionId, userId: result.user.id } });
