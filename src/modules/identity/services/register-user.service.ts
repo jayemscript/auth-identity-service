@@ -7,6 +7,7 @@ import {
 import { DataSource } from 'typeorm';
 import { auth } from '../../../auth/better-auth';
 import { withBetterAuthTransaction } from '../../../common/database';
+import { findApplicationPolicy } from '../../apps/repositories/application-policy.repository';
 import { RegistrationResponseDto } from '../dtos';
 
 export interface RegisterUserInput {
@@ -52,14 +53,14 @@ export class RegisterUserService {
   async execute(input: RegisterUserInput): Promise<RegistrationResponseDto> {
     const manager = this.dataSource.manager;
     const app = await manager.query(
-      `SELECT id, status, policy FROM apps.applications WHERE slug = $1`,
+      `SELECT id, status FROM apps.applications WHERE slug = $1`,
       [input.appSlug.trim().toLowerCase()],
     );
     if (!app.length || app[0].status !== 'active')
       throw new ForbiddenException(
         'This app could not be found or is currently unavailable.',
       );
-    const appPolicy = app[0].policy ?? {};
+    const appPolicy = await findApplicationPolicy(manager, app[0].id);
     const projectAndAppSettings = await manager.query(
       `SELECT key, value FROM system.settings WHERE application_id IS NULL OR application_id = $1 ORDER BY application_id NULLS FIRST`,
       [app[0].id],

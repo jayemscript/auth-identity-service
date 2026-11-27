@@ -21,7 +21,9 @@ describe('RegisterUserService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    signUp = auth.api.signUpEmail as jest.Mock;
+    query.mockReset();
+    transactionQuery.mockReset();
+    signUp = auth.api.signUpEmail as unknown as jest.Mock;
     service = new RegisterUserService(dataSource as unknown as DataSource);
   });
 
@@ -30,9 +32,12 @@ describe('RegisterUserService', () => {
       {
         id: 'app-1',
         status: 'active',
-        policy: { registrationMode: 'disabled' },
       },
     ]);
+    query.mockResolvedValueOnce([
+      { key: 'registrationMode', value: 'disabled' },
+    ]);
+    query.mockResolvedValueOnce([]);
     query.mockResolvedValueOnce([]);
     await expect(
       service.execute({
@@ -49,8 +54,9 @@ describe('RegisterUserService', () => {
 
   it('requires matching proof when effective verification policy is enabled', async () => {
     query.mockResolvedValueOnce([
-      { id: 'app-1', status: 'active', policy: {} },
+      { id: 'app-1', status: 'active' },
     ]);
+    query.mockResolvedValueOnce([]);
     query.mockResolvedValueOnce([
       { key: 'email_verification.required', value: true },
     ]);
@@ -69,7 +75,8 @@ describe('RegisterUserService', () => {
 
   it('creates user config and app grant after Better Auth creates the user', async () => {
     query
-      .mockResolvedValueOnce([{ id: 'app-1', status: 'active', policy: {} }])
+      .mockResolvedValueOnce([{ id: 'app-1', status: 'active' }])
+      .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([{ id: 'user-1' }]);
     signUp.mockResolvedValueOnce({ user: { id: 'user-1' } });

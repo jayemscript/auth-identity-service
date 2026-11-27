@@ -11,6 +11,7 @@ import { auth } from '../../../auth/better-auth';
 import { normalizeIdentifier } from '../../../common/security';
 import { signAccessToken } from '../../../common/security/sign-access-token';
 import { AuthTokenPairResponseDto } from '../dtos';
+import { findApplicationPolicy } from '../../apps/repositories/application-policy.repository';
 
 export interface LoginExecutionResult extends AuthTokenPairResponseDto {
   userName: string;
@@ -88,13 +89,14 @@ export class LoginService {
     try {
       await this.dataSource.transaction(async (tx) => {
         const [app] = await tx.query(
-          `SELECT id, policy FROM apps.applications WHERE slug = $1 AND status = 'active' FOR UPDATE`,
+          `SELECT id FROM apps.applications WHERE slug = $1 AND status = 'active' FOR UPDATE`,
           [input.appId],
         );
         if (!app)
           throw new UnauthorizedException(
             'This app could not be found or is currently unavailable.',
           );
+        const appPolicy = await findApplicationPolicy(tx, app.id);
         const [grant] = await tx.query(
           `SELECT id FROM identity.user_application_access WHERE user_id = $1 AND application_id = $2 AND status = 'active' FOR UPDATE`,
           [result.user.id, app.id],
@@ -130,7 +132,7 @@ export class LoginService {
         }
         const cap = Number(
           config.session_limit_override ??
-            app.policy?.maxConcurrentSessions ??
+            appPolicy.maxConcurrentSessions ??
             resolvedSettings.get('session.max_concurrent') ??
             3,
         );
@@ -145,7 +147,7 @@ export class LoginService {
               'You have reached the maximum number of active sessions for this app. End another session before signing in again.',
           });
         const idleSeconds = Number(
-          app.policy?.idleTimeoutSeconds ??
+          appPolicy.idleTimeoutSeconds ??
             resolvedSettings.get('session.idle_timeout_seconds') ??
             604800,
         );

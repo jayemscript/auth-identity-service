@@ -30,7 +30,8 @@ describe('LoginService', () => {
       token: 'access-token',
     });
     tx.query
-      .mockResolvedValueOnce([{ id: 'app-1', policy: {} }])
+      .mockResolvedValueOnce([{ id: 'app-1' }])
+      .mockResolvedValueOnce([])
       .mockResolvedValueOnce([{ id: 'grant-1' }])
       .mockResolvedValueOnce([
         { status: 'active', is_banned: false, session_limit_override: null },
@@ -89,8 +90,9 @@ describe('LoginService', () => {
   it('removes the newly created framework session when the app limit is reached', async () => {
     tx.query.mockReset();
     tx.query
+      .mockResolvedValueOnce([{ id: 'app-1' }])
       .mockResolvedValueOnce([
-        { id: 'app-1', policy: { maxConcurrentSessions: 1 } },
+        { key: 'maxConcurrentSessions', value: 1 },
       ])
       .mockResolvedValueOnce([{ id: 'grant-1' }])
       .mockResolvedValueOnce([
@@ -123,7 +125,8 @@ describe('LoginService', () => {
   it('explains when a valid account is not registered for the selected app', async () => {
     tx.query.mockReset();
     tx.query
-      .mockResolvedValueOnce([{ id: 'app-1', policy: {} }])
+      .mockResolvedValueOnce([{ id: 'app-1' }])
+      .mockResolvedValueOnce([])
       .mockResolvedValueOnce([]);
 
     let thrown: unknown;

@@ -3,6 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import { DataSource } from 'typeorm';
 import { AuthTokenPairResponseDto } from '../dtos';
 import { signAccessToken } from '../../../common/security/sign-access-token';
+import { findApplicationPolicy } from '../../apps/repositories/application-policy.repository';
 
 @Injectable()
 export class RefreshSessionService {
@@ -42,7 +43,7 @@ export class RefreshSessionService {
       await this.dataSource.transaction(async (tx) => {
         const [session] = await tx.query(
           `SELECT s.refresh_generation AS generation, s.expires_at AS "idleExpiry", s.hard_expires_at AS "hardExpiry",
-           a.id AS application_id, a.slug, a.policy FROM auth.sessions s JOIN apps.applications a ON a.id = s.application_id
+           a.id AS application_id, a.slug FROM auth.sessions s JOIN apps.applications a ON a.id = s.application_id
          JOIN identity.user_application_access g ON g.user_id = s.user_id AND g.application_id = a.id AND g.status = 'active'
          JOIN identity.user_configs c ON c.user_id = s.user_id AND c.status = 'active'
          WHERE s.id = $1 AND s.user_id = $2 AND s.revoked_at IS NULL AND a.status = 'active'
@@ -60,6 +61,7 @@ export class RefreshSessionService {
             'This refresh token is no longer valid. Please sign in again.',
           );
         }
+        const appPolicy = await findApplicationPolicy(tx, session.application_id);
         const settings = await tx.query(
           `SELECT key, value FROM system.settings WHERE application_id IS NULL OR application_id = $1 ORDER BY application_id NULLS FIRST`,
           [session.application_id],
@@ -74,7 +76,7 @@ export class RefreshSessionService {
           Math.min(
             now.getTime() +
               Number(
-                session.policy?.idleTimeoutSeconds ??
+                appPolicy.idleTimeoutSeconds ??
                   resolvedSettings.get('session.idle_timeout_seconds') ??
                   604800,
               ) *

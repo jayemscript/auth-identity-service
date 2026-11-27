@@ -9,7 +9,10 @@ import { Request } from 'express';
 import { DataSource } from 'typeorm';
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { Reflector } from '@nestjs/core';
-import { APP_SCOPES } from '../../../common/security/app-scopes';
+import {
+  APP_SCOPES,
+  hasRequiredScopes,
+} from '../../../common/security/app-scopes';
 
 @Injectable()
 export class ApiKeyGuard implements CanActivate {
@@ -33,10 +36,13 @@ export class ApiKeyGuard implements CanActivate {
         'Choose an app by including its slug in the X-App-Id header.',
       );
     const [credential] = await this.dataSource.query(
-      `SELECT c.secret_hash, c.scopes, c.expires_at, c.revoked_at, a.id AS app_id
+      `SELECT c.secret_hash, c.expires_at, c.revoked_at, a.id AS app_id,
+         COALESCE(array_agg(s.scope) FILTER (WHERE s.scope IS NOT NULL), '{}') AS scopes
        FROM apps.application_credentials c
        JOIN apps.applications a ON a.id = c.application_id
-       WHERE c.id = $1 AND a.slug = $2 AND a.status = 'active'`,
+       LEFT JOIN apps.application_credential_scopes s ON s.credential_id = c.id
+       WHERE c.id = $1 AND a.slug = $2 AND a.status = 'active'
+       GROUP BY c.secret_hash, c.expires_at, c.revoked_at, a.id`,
       [credentialId, slug.toLowerCase()],
     );
     const actualHash = createHash('sha256').update(secret).digest();
@@ -61,7 +67,7 @@ export class ApiKeyGuard implements CanActivate {
       [context.getHandler(), context.getClass()],
     ) ?? ['auth:use'];
     const scopes = credential.scopes as string[];
-    if (!requiredScopes.every((scope) => scopes.includes(scope)))
+    if (!hasRequiredScopes(scopes, requiredScopes))
       throw new ForbiddenException(
         'This API credential does not have permission to use this operation.',
       );

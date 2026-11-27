@@ -26,11 +26,18 @@ async function main() {
       const id = randomBytes(16).toString('hex');
       const secret = randomBytes(32).toString('base64url');
       const secretHash = createHash('sha256').update(secret).digest('hex');
-      await AppDataSource.query(
-        `INSERT INTO apps.application_credentials(id, application_id, name, secret_hash, scopes, expires_at)
-         VALUES ($1, $2, $3, $4, $5, $6)`,
-        [id, app.id, name, secretHash, scopes, expiresAt],
-      );
+      await AppDataSource.transaction(async (tx) => {
+        await tx.query(
+          `INSERT INTO apps.application_credentials(id, application_id, name, secret_hash, expires_at)
+           VALUES ($1, $2, $3, $4, $5)`,
+          [id, app.id, name, secretHash, expiresAt],
+        );
+        for (const scope of new Set(scopes))
+          await tx.query(
+            `INSERT INTO apps.application_credential_scopes(credential_id, scope) VALUES ($1, $2)`,
+            [id, scope],
+          );
+      });
       console.log(`Save this credential once in the BFF secret store.\n${id}.${secret}`);
       return;
     }

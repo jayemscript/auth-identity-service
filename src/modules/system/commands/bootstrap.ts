@@ -4,6 +4,7 @@ import { AppDataSource } from '../../../database/data-source';
 import { auth } from '../../../auth/better-auth';
 import { randomUUID } from 'node:crypto';
 import { withBetterAuthTransaction } from '../../../common/database';
+import { findApplicationPolicy } from '../../apps/repositories/application-policy.repository';
 
 interface SeedInput {
   runKey: string;
@@ -132,30 +133,36 @@ async function main(): Promise<void> {
       for (const app of seed.apps) {
         const slug = app.slug.trim().toLowerCase();
         const policy = app.policy ?? {};
-        const [inserted] = await tx.query(
-          `INSERT INTO apps.applications(id, slug, name, client_type, policy)
-           VALUES ($1, $2, $3, $4, $5)
-           ON CONFLICT (slug) DO NOTHING
-           RETURNING id, name, client_type, policy`,
-          [randomUUID(), slug, app.name.trim(), app.clientType.trim(), policy],
+        const [existingApp] = await tx.query(
+          `SELECT id, name, client_type FROM apps.applications WHERE slug = $1`,
+          [slug],
         );
-        const [existingApp] = inserted
-          ? [inserted]
-          : await tx.query(
-              `SELECT id, name, client_type, policy FROM apps.applications WHERE slug = $1`,
-              [slug],
+        if (existingApp) {
+          const existingPolicy = await findApplicationPolicy(tx, existingApp.id);
+          if (
+            existingApp.name !== app.name.trim() ||
+            existingApp.client_type !== app.clientType.trim() ||
+            stableJson(existingPolicy) !== stableJson(policy)
+          )
+            throw new Error(
+              `App ${slug} is already registered with different settings. App records are immutable; add a new app with a new slug instead.`,
             );
-        if (!existingApp)
-          throw new Error(`Could not load app ${slug} after bootstrap insert`);
-        if (
-          existingApp.name !== app.name.trim() ||
-          existingApp.client_type !== app.clientType.trim() ||
-          stableJson(existingApp.policy ?? {}) !== stableJson(policy)
-        )
-          throw new Error(
-            `App ${slug} is already registered with different settings. App records are immutable; add a new app with a new slug instead.`,
+          appIds.set(slug, existingApp.id);
+          continue;
+        }
+
+        const applicationId = randomUUID();
+        for (const [key, value] of Object.entries(policy)) {
+          await tx.query(
+            `INSERT INTO apps.application_policy_entries(application_id, key, value) VALUES ($1, $2, $3)`,
+            [applicationId, key, JSON.stringify(value)],
           );
-        appIds.set(slug, existingApp.id);
+        }
+        await tx.query(
+          `INSERT INTO apps.applications(id, slug, name, client_type) VALUES ($1, $2, $3, $4)`,
+          [applicationId, slug, app.name.trim(), app.clientType.trim()],
+        );
+        appIds.set(slug, applicationId);
       }
 
       for (const [key, value] of Object.entries({
@@ -217,11 +224,12 @@ async function main(): Promise<void> {
         }
       }
       await tx.query(
-        `INSERT INTO system.bootstrap_runs(id,run_key,completed_at,result_metadata) VALUES ($1,$2,now(),$3)`,
+        `INSERT INTO system.bootstrap_runs(id,run_key,completed_at,apps_count,users_count) VALUES ($1,$2,now(),$3,$4)`,
         [
           randomUUID(),
           seed.runKey,
-          JSON.stringify({ apps: seed.apps.length, users: people.length }),
+          seed.apps.length,
+          people.length,
         ],
       );
     });

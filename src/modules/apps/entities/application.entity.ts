@@ -15,7 +15,6 @@ export class Application {
   @Column({ type: 'text' }) name!: string;
   @Column({ name: 'client_type', type: 'text' }) clientType!: string;
   @Column({ type: 'text', default: 'active' }) status!: string;
-  @Column({ type: 'jsonb', default: {} }) policy!: Record<string, unknown>;
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })

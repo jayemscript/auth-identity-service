@@ -36,8 +36,10 @@ describe('RefreshSessionService', () => {
           hardExpiry: new Date(Date.now() + 120_000),
           application_id: 'app-1',
           slug: 'shop',
-          policy: { idleTimeoutSeconds: 60 },
         },
+      ])
+      .mockResolvedValueOnce([
+        { key: 'idleTimeoutSeconds', value: 60 },
       ])
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([]);
@@ -54,7 +56,8 @@ describe('RefreshSessionService', () => {
       refreshToken: 'new-refresh',
     });
     expect(dataSource.transaction).toHaveBeenCalledTimes(1);
-    expect(transactionQuery).toHaveBeenCalledTimes(3);
+    expect(transactionQuery).toHaveBeenCalledTimes(4);
+    expect(transactionQuery.mock.calls[2][0]).toContain('system.settings');
     expect(signAsync.mock.calls[0][0]).toMatchObject({
       typ: 'refresh',
       generation: 3,
