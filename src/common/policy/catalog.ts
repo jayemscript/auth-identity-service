@@ -99,7 +99,7 @@ export const POLICY_DEFINITIONS: readonly PolicyDefinition[] = [
   },
   {
     key: 'session.overflow_policy',
-    // Partial: block_new is enforced. Session eviction modes are not implemented.
+    // Login revokes sessions by creation time or last refresh when an app reaches its cap.
     valueType: 'string',
     scope: 'both',
     defaultValue: 'block_new',

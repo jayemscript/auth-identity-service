@@ -42,6 +42,10 @@ export class RefreshSessionService {
     const now = new Date();
     const [{ generation, idleExpiry, hardExpiry }] =
       await this.dataSource.transaction(async (tx) => {
+        await tx.query(
+          `SELECT id FROM apps.applications WHERE slug = $1 FOR UPDATE`,
+          [appSlug],
+        );
         const [session] = await tx.query(
           `SELECT s.refresh_generation AS generation, s.expires_at AS "idleExpiry", s.hard_expires_at AS "hardExpiry",
            a.id AS application_id, a.slug FROM auth.sessions s JOIN apps.applications a ON a.id = s.application_id

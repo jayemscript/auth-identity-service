@@ -18,7 +18,7 @@ export class RevokeSessionsService {
   }) {
     return this.dataSource.transaction(async (tx) => {
       const [app] = await tx.query(
-        `SELECT id FROM apps.applications WHERE slug = $1`,
+        `SELECT id FROM apps.applications WHERE slug = $1 FOR UPDATE`,
         [input.appSlug],
       );
       if (!app) return { revoked: 0 };

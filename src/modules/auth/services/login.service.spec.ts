@@ -130,6 +130,35 @@ describe('LoginService', () => {
     );
   });
 
+  it.each([
+    ['evict_oldest', 'created_at ASC, id ASC'],
+    ['evict_least_active', 'COALESCE(last_refreshed_at, created_at) ASC'],
+  ])('revokes an existing session when policy is %s', async (overflowPolicy, ordering) => {
+    policy['session.max_concurrent'] = 1;
+    policy['session.overflow_policy'] = overflowPolicy;
+    tx.query.mockImplementation((sql: string) => Promise.resolve(
+      sql.includes('FROM apps.application_policy_entries') ? [] :
+      sql.includes('FROM apps.applications') ? [{ id: 'app-1' }] :
+      sql.includes('user_application_access') ? [{ id: 'grant-1' }] :
+      sql.includes('user_configs') ? [{ status: 'active', is_banned: false, session_limit_override: null }] :
+      sql.includes('count(*)') ? [{ count: 1 }] :
+      sql.includes('SELECT id FROM auth.sessions') ? [{ id: 'old-session' }] : [],
+    ));
+
+    await expect(service.execute({
+      identifier: 'person@example.com',
+      password: 'password',
+      appId: 'shop',
+    })).resolves.toMatchObject({ sessionId: 'session-1' });
+
+    const selection = tx.query.mock.calls.find(([sql]) => sql.includes('SELECT id FROM auth.sessions'))?.[0];
+    expect(selection).toContain(ordering);
+    expect(tx.query).toHaveBeenCalledWith(
+      expect.stringContaining('UPDATE auth.sessions SET revoked_at'),
+      ['old-session'],
+    );
+  });
+
   it('explains when a valid account is not registered for the selected app', async () => {
     tx.query.mockReset();
     tx.query.mockImplementation((sql: string) => Promise.resolve(

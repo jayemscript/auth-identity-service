@@ -58,7 +58,9 @@ Use `tokenType: "refresh"` to check a refresh token. `data.active` indicates whe
 
 Save both replacement tokens from `data` immediately; refresh tokens rotate, so reusing an earlier generation is rejected.
 
-If the app’s active-session limit is reached, login returns `409 Conflict` with a readable `message` and the code `SESSION_LIMIT_REACHED`; end an existing session before signing in again.
+When the app’s active-session limit is reached, `session.overflow_policy` controls login. `block_new` returns `409 Conflict` with code `SESSION_LIMIT_REACHED`. `evict_oldest` revokes the earliest-created active session. `evict_least_active` revokes the session with the oldest successful refresh, falling back to its creation time when it has never been refreshed. Each revoked session is recorded as a `session.revoked` event with reason `session_overflow`.
+
+Live token verification and protected service routes reject evicted sessions immediately. Backends that verify access-token signatures offline cannot see a revocation until the token expires, so use live verification when immediate revocation matters.
 
 ## Logout
 

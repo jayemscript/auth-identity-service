@@ -122,7 +122,7 @@ export class LoginService {
       nowDate.getTime() +
         Number(process.env.JWT_REFRESH_EXPIRATION ?? 2592000) * 1000,
     );
-    let idleExpiry = hardExpiry;
+    let tokenPair: LoginExecutionResult | undefined;
     try {
       await this.dataSource.transaction(async (tx) => {
         const [app] = await tx.query(
@@ -171,12 +171,50 @@ export class LoginService {
           `SELECT count(*)::int AS count FROM auth.sessions WHERE user_id = $1 AND application_id = $2 AND revoked_at IS NULL AND expires_at > now() AND hard_expires_at > now()`,
           [result.user.id, app.id],
         );
-        if (count >= cap)
+        const overflowPolicy = appPolicy['session.overflow_policy'];
+        const evictedCount = Math.max(0, Number(count) - cap + 1);
+        if (evictedCount && overflowPolicy === 'block_new')
           throw new ConflictException({
             code: 'SESSION_LIMIT_REACHED',
             message:
               'You have reached the maximum number of active sessions for this app. End another session before signing in again.',
           });
+        if (evictedCount) {
+          const orderBy = overflowPolicy === 'evict_least_active'
+            ? 'COALESCE(last_refreshed_at, created_at) ASC, created_at ASC, id ASC'
+            : 'created_at ASC, id ASC';
+          const sessions = await tx.query(
+            `SELECT id FROM auth.sessions
+             WHERE user_id = $1 AND application_id = $2 AND revoked_at IS NULL
+               AND expires_at > now() AND hard_expires_at > now()
+             ORDER BY ${orderBy} LIMIT $3 FOR UPDATE`,
+            [result.user.id, app.id, evictedCount],
+          ) as Array<{ id: string }>;
+          if (sessions.length < evictedCount)
+            throw new ConflictException({
+              code: 'SESSION_LIMIT_REACHED',
+              message: 'You have reached the maximum number of active sessions for this app. End another session before signing in again.',
+            });
+          for (const session of sessions) {
+            await tx.query(
+              `UPDATE auth.sessions SET revoked_at = now(), updated_at = now() WHERE id = $1`,
+              [session.id],
+            );
+            await this.auditLog.execute(tx, {
+              applicationId: app.id,
+              targetUserId: result.user.id,
+              action: 'session.revoked',
+              changes: { sessionId: session.id, reason: 'session_overflow' },
+            });
+            await this.publishEvent.execute(tx, {
+              applicationId: app.id,
+              eventType: 'session.revoked',
+              aggregateType: 'session',
+              aggregateId: session.id,
+              payload: { sessionId: session.id, userId: result.user.id, reason: 'session_overflow' },
+            });
+          }
+        }
         const idleTimeoutMinutes = Number(
           appPolicy['session.idle_timeout_minutes'],
         );
@@ -190,13 +228,29 @@ export class LoginService {
             hardExpiry.getTime(),
           ),
         );
-        idleExpiry = resolvedIdleExpiry;
         await tx.query(
           `UPDATE auth.sessions SET application_id = $1, expires_at = $2, hard_expires_at = $3 WHERE id = $4`,
           [app.id, resolvedIdleExpiry, hardExpiry, sessionId],
         );
         await this.auditLog.execute(tx, { applicationId: app.id, targetUserId: result.user.id, action: 'session.created', changes: { sessionId } });
         await this.publishEvent.execute(tx, { applicationId: app.id, eventType: 'session.created', aggregateType: 'session', aggregateId: sessionId, payload: { sessionId, userId: result.user.id } });
+        const now = Math.floor(Date.now() / 1000);
+        const refreshLifetime = Math.max(1, Math.floor((resolvedIdleExpiry.getTime() - Date.now()) / 1000));
+        const accessExpiresAt = now + Math.min(Number(process.env.JWT_ACCESS_EXPIRATION ?? 900), refreshLifetime);
+        const claims = { sub: result.user.id, aud: appSlug, sid: sessionId, iat: now };
+        tokenPair = Object.assign(new AuthTokenPairResponseDto(), {
+          userName: result.user.name,
+          sessionId,
+          accessToken: await signAccessToken({ ...claims, typ: 'access', exp: accessExpiresAt, iss: 'auth-identity-service' }),
+          refreshToken: await this.jwt.signAsync({ ...claims, typ: 'refresh', generation: 0 }, {
+            secret: process.env.JWT_SECRET,
+            algorithm: 'HS256',
+            expiresIn: refreshLifetime,
+            issuer: 'auth-identity-service',
+          }),
+          accessTokenExpiresAt: new Date(accessExpiresAt * 1000).toISOString(),
+          refreshTokenExpiresAt: resolvedIdleExpiry.toISOString(),
+        });
       });
     } catch (error) {
       await this.dataSource.query(`DELETE FROM auth.sessions WHERE id = $1`, [
@@ -205,43 +259,6 @@ export class LoginService {
       throw error;
     }
 
-    const now = Math.floor(Date.now() / 1000);
-    const accessLifetime = Math.min(
-      Number(process.env.JWT_ACCESS_EXPIRATION ?? 900),
-      Math.floor((idleExpiry.getTime() - Date.now()) / 1000),
-    );
-    const refreshLifetime = Math.max(
-      1,
-      Math.floor((idleExpiry.getTime() - Date.now()) / 1000),
-    );
-    const accessExpiresAt = now + accessLifetime;
-    const refreshExpiresAt = now + refreshLifetime;
-    const claims = {
-      sub: result.user.id,
-      aud: appSlug,
-      sid: sessionId,
-      iat: now,
-    };
-    return Object.assign(new AuthTokenPairResponseDto(), {
-      userName: result.user.name,
-      sessionId,
-      accessToken: await signAccessToken({
-        ...claims,
-        typ: 'access',
-        exp: accessExpiresAt,
-        iss: 'auth-identity-service',
-      }),
-      refreshToken: await this.jwt.signAsync(
-        { ...claims, typ: 'refresh', generation: 0 },
-        {
-          secret: process.env.JWT_SECRET,
-          algorithm: 'HS256',
-          expiresIn: refreshLifetime,
-          issuer: 'auth-identity-service',
-        },
-      ),
-      accessTokenExpiresAt: new Date(accessExpiresAt * 1000).toISOString(),
-      refreshTokenExpiresAt: new Date(refreshExpiresAt * 1000).toISOString(),
-    });
+    return tokenPair!;
   }
 }
