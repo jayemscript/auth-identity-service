@@ -10,8 +10,11 @@ export interface PolicyDefinition {
 }
 
 export const POLICY_DEFINITIONS: readonly PolicyDefinition[] = [
+  // Runtime status notes describe behavior currently enforced by services.
+  // Keep availability and runtime support separate as policies are implemented.
   {
     key: 'registration.mode',
+    // Partial: public, operator_only, hybrid, and disabled are enforced. invite_only has no flow yet.
     valueType: 'string',
     scope: 'both',
     defaultValue: 'disabled',
@@ -26,6 +29,7 @@ export const POLICY_DEFINITIONS: readonly PolicyDefinition[] = [
   },
   {
     key: 'account.approval',
+    // Partial: email_verification is enforced. auto_approve is the current path; admin_approval has no workflow yet.
     valueType: 'string',
     scope: 'both',
     defaultValue: 'auto_approve',
@@ -34,6 +38,7 @@ export const POLICY_DEFINITIONS: readonly PolicyDefinition[] = [
   },
   {
     key: 'auth.methods',
+    // Catalog only: authentication currently uses password credentials.
     valueType: 'string_set',
     scope: 'both',
     defaultValue: ['password'],
@@ -42,6 +47,7 @@ export const POLICY_DEFINITIONS: readonly PolicyDefinition[] = [
   },
   {
     key: 'mfa.required',
+    // Catalog only: MFA enrollment and challenge flows are not implemented.
     valueType: 'boolean',
     scope: 'both',
     defaultValue: false,
@@ -49,6 +55,7 @@ export const POLICY_DEFINITIONS: readonly PolicyDefinition[] = [
   },
   {
     key: 'mfa.methods',
+    // Catalog only: MFA methods are not implemented.
     valueType: 'string',
     scope: 'both',
     defaultValue: 'any',
@@ -57,6 +64,7 @@ export const POLICY_DEFINITIONS: readonly PolicyDefinition[] = [
   },
   {
     key: 'mfa.grace_period_days',
+    // Catalog only: MFA enrollment and grace periods are not implemented.
     valueType: 'number',
     scope: 'both',
     defaultValue: 7,
@@ -65,6 +73,7 @@ export const POLICY_DEFINITIONS: readonly PolicyDefinition[] = [
   },
   {
     key: 'mfa.remember_device_days',
+    // Catalog only: trusted-device MFA behavior is not implemented.
     valueType: 'number',
     scope: 'both',
     defaultValue: 0,
@@ -73,6 +82,7 @@ export const POLICY_DEFINITIONS: readonly PolicyDefinition[] = [
   },
   {
     key: 'step_up.auth',
+    // Catalog only: step-up authentication is not implemented.
     valueType: 'string',
     scope: 'deployment',
     defaultValue: 'off',
@@ -81,6 +91,7 @@ export const POLICY_DEFINITIONS: readonly PolicyDefinition[] = [
   },
   {
     key: 'session.max_concurrent',
+    // Implemented: login blocks a new session when this app's active-session cap is reached.
     valueType: 'number',
     scope: 'both',
     defaultValue: 3,
@@ -88,6 +99,7 @@ export const POLICY_DEFINITIONS: readonly PolicyDefinition[] = [
   },
   {
     key: 'session.overflow_policy',
+    // Partial: block_new is enforced. Session eviction modes are not implemented.
     valueType: 'string',
     scope: 'both',
     defaultValue: 'block_new',
@@ -96,6 +108,7 @@ export const POLICY_DEFINITIONS: readonly PolicyDefinition[] = [
   },
   {
     key: 'session.idle_timeout_minutes',
+    // Implemented: login and refresh enforce the app's idle expiry, bounded by the hard expiry.
     valueType: 'number',
     scope: 'both',
     defaultValue: 10080,
@@ -103,6 +116,7 @@ export const POLICY_DEFINITIONS: readonly PolicyDefinition[] = [
   },
   {
     key: 'session.ip_binding',
+    // Catalog only: session IP binding and change handling are not implemented.
     valueType: 'string',
     scope: 'both',
     defaultValue: 'off',
@@ -111,6 +125,7 @@ export const POLICY_DEFINITIONS: readonly PolicyDefinition[] = [
   },
   {
     key: 'token.refresh_rotation',
+    // Catalog only: refresh-token rotation behavior is not selected by this policy yet.
     valueType: 'string',
     scope: 'deployment',
     defaultValue: 'rotate',
@@ -119,6 +134,7 @@ export const POLICY_DEFINITIONS: readonly PolicyDefinition[] = [
   },
   {
     key: 'risk.lockout_threshold',
+    // Implemented: failed password attempts are counted per app and account. Zero disables lockout.
     valueType: 'number',
     scope: 'both',
     defaultValue: 0,
@@ -127,6 +143,7 @@ export const POLICY_DEFINITIONS: readonly PolicyDefinition[] = [
   },
   {
     key: 'risk.lockout_duration_minutes',
+    // Partial: 5, 15, and 60 minute locks are enforced. until_admin_unlock currently falls back to 15 minutes.
     valueType: 'string',
     scope: 'both',
     defaultValue: '15',
@@ -135,6 +152,7 @@ export const POLICY_DEFINITIONS: readonly PolicyDefinition[] = [
   },
   {
     key: 'risk.captcha_mode',
+    // Catalog only: CAPTCHA challenges are not implemented.
     valueType: 'string',
     scope: 'both',
     defaultValue: 'off',
@@ -143,6 +161,7 @@ export const POLICY_DEFINITIONS: readonly PolicyDefinition[] = [
   },
   {
     key: 'risk.new_device_alert',
+    // Partial: new-device recognition is recorded. Alerts, MFA challenges, and blocking are not implemented.
     valueType: 'string',
     scope: 'both',
     defaultValue: 'off',
@@ -151,6 +170,7 @@ export const POLICY_DEFINITIONS: readonly PolicyDefinition[] = [
   },
   {
     key: 'email_verification.required',
+    // Partial: registration requires the caller-supplied verifiedEmail proof when enabled; delivery and verification are external.
     valueType: 'boolean',
     scope: 'both',
     defaultValue: false,
