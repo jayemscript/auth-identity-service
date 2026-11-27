@@ -31,3 +31,15 @@ issue-app-credential:
 # make issue-app-credential APP_SLUG=public-ecommerce-web CREDENTIAL_NAME=public-ecommerce-web SCOPES=auth:login,tokens:verify,tokens:refresh,users:register
 revoke-app-credential:
 	pnpm exec ts-node -r tsconfig-paths/register src/modules/system/commands/app-credentials.ts revoke $(APP_SLUG) $(CREDENTIAL_ID)
+
+test-e2e:
+	pnpm test:e2e
+
+test-e2e-serial:
+	pnpm test:e2e:serial
+
+test-e2e-file:
+	pnpm test:e2e:one -- $(FILE)
+
+test-e2e-safety:
+	pnpm test:e2e:safety

@@ -13,7 +13,7 @@ import {
 } from './modules/identity/entities';
 import { AuthSession, Verification } from './modules/auth/entities';
 import { Accounts } from './modules/identity/entities';
-import { HealthController, ApiKeyOnlyGuard } from './modules/system';
+import { HealthModule } from './modules/health';
 import { AppsModule } from './modules/apps';
 
 @Module({
@@ -53,8 +53,7 @@ import { AppsModule } from './modules/apps';
     AuthModule,
     AppsModule,
     IdentityModule,
+    HealthModule,
   ],
-  controllers: [HealthController],
-  providers: [ApiKeyOnlyGuard],
 })
 export class AppModule {}
