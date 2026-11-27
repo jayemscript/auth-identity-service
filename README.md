@@ -51,3 +51,9 @@ For `/v1` requests, send `AUTH_CREDENTIAL_KEY` as `X-API-Key` and `AUTH_SERVICE_
 ## API documentation and tests
 
 The Postman-oriented endpoint guide is in [`docs/api/README.md`](docs/api/README.md), with request details in the Markdown files in `docs/api/`. Run local-only end-to-end tests with `make test-e2e`; use `make test-e2e-serial` or `make test-e2e-file FILE=test/e2e/auth-jwks.e2e-spec.ts` to narrow a run. The suite requires `DB_ENV=local`, a local database, migrations and bootstrap, and a running API.
+
+## Security controls and event outbox
+
+Login and both registration routes apply their app's configured security rules. IP rules can allow or block login and registration networks, and email-domain rules can allow or block registrations. Failed-password lockouts are app-scoped policy settings. A configured threshold counts wrong passwords for an account across email and username aliases and returns the same generic `401` as invalid credentials while the account is locked. Login can also accept an optional BFF-generated `deviceId` for app-scoped device recognition.
+
+The service records audit and security events internally. Identity and session changes publish the supported event catalog and queue pending webhook deliveries for matching app endpoints. Developers configure rule sets with `make security-rules RULES_FILE=...` and webhook subscriptions with `make webhook-endpoints ENDPOINTS_FILE=...`. The outbox currently queues delivery records but does not send outbound HTTP requests. See [`docs/api/07-events-and-webhooks.md`](docs/api/07-events-and-webhooks.md) for event names and delivery status, and [`docs/api/08-security-controls.md`](docs/api/08-security-controls.md) for security behavior and response codes.

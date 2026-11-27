@@ -9,13 +9,16 @@ All authentication requests require the shared API key and an active app slug in
 ```json
 {
   "identifier": "alex@example.com",
-  "password": "ChangeMe123!"
+  "password": "ChangeMe123!",
+  "deviceId": "optional-bff-generated-device-id"
 }
 ```
 
-`identifier` may be an email address or username, and the account must have active access to `{{appSlug}}`. Save `data.sessionId`, `data.accessToken`, and `data.refreshToken` as Postman environment values.
+`identifier` may be an email address or username, and the account must have active access to `{{appSlug}}`. `deviceId` is optional. A BFF may generate a random base64url identifier of 22–128 characters and retain it for that browser or device. Send the same value on later logins from that device. The service stores only an app- and user-scoped digest and links recognized devices to sessions. Do not use an email, username, hardware identifier, or other personal data as the device ID. Save `data.sessionId`, `data.accessToken`, and `data.refreshToken` as Postman environment values.
 
 If the password is valid but the account has no active grant for this app, login returns `403 Forbidden` with a message explaining how to request access. Invalid credentials return `401 Unauthorized` with a plain-language message.
+
+When an app has login IP rules, requests outside the allowed networks return `403` with code `IP_RULE_DENIED`. When app-specific failed-login lockout is enabled, failed password attempts for the same account count together whether the caller uses its email or username. An active lockout returns the same generic `401` response as invalid credentials. The threshold and lock duration are app policy settings managed by the service operator. A `deviceId` format error returns `400`.
 
 Example response shape:
 
