@@ -15,6 +15,8 @@ import { AuthSession, Verification } from './modules/auth/entities';
 import { Accounts } from './modules/identity/entities';
 import { HealthModule } from './modules/health';
 import { AppsModule } from './modules/apps';
+import { ChallengesModule } from './modules/challenges';
+import { MessagingModule } from './modules/messaging';
 
 @Module({
   imports: [
@@ -54,6 +56,8 @@ import { AppsModule } from './modules/apps';
     AppsModule,
     IdentityModule,
     HealthModule,
+    ChallengesModule,
+    MessagingModule,
   ],
 })
 export class AppModule {}

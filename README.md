@@ -13,6 +13,8 @@ cp .env.example .env
 
 Set the PostgreSQL connection values in `.env` (`DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASS`, `DB_NAME`, and `DB_SSL`). Generate real values for `BETTER_AUTH_SECRET`, `JWT_SECRET`, `API_KEY`, `LOGIN_SUBJECT_HMAC_SECRET`, `SUPERADMINPASSWORD`, and `MOCK_USERS_PASSWORD` before bootstrapping. Set `DEVICE_ID_HMAC_SECRET` to a separate generated secret if login requests use `deviceId`. `API_KEY` is the shared key for `GET /health`; `/v1` routes use app credentials instead. `DB_ENV=local` is required by the local E2E test safety check.
 
+Generate a separate random `CHALLENGE_PROOF_SECRET` for challenge proof digests. Configure `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, and `SMTP_FROM` for one sender mailbox per deployment. Gmail testing uses `SMTP_HOST=smtp.gmail.com`, `SMTP_PORT=465`, `SMTP_SECURE=true`, and a Google app password as `SMTP_PASS`. Production can use a company mailbox with its SMTP hostname and credentials. Apply database migrations before starting the updated service. Messaging accepts caller-supplied email content and does not persist templates or message bodies.
+
 ## Migrate, bootstrap, and run
 
 Apply the TypeORM migrations, then load the example apps, SuperAdmin, and mock users:
