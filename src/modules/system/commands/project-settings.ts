@@ -2,7 +2,7 @@ import 'dotenv/config';
 import { readFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { AppDataSource } from '../../../database/data-source';
-import { POLICY_DEFINITIONS } from '../../../common/policy/catalog';
+import { validateProjectSettings } from './project-settings.validation';
 
 async function main(): Promise<void> {
   const path = process.argv[2];
@@ -11,23 +11,7 @@ async function main(): Promise<void> {
     string,
     unknown
   >;
-  const definitions = new Map(
-    POLICY_DEFINITIONS.map((definition) => [definition.key, definition]),
-  );
-  for (const [key, value] of Object.entries(settings)) {
-    const definition = definitions.get(key);
-    if (!definition || definition.availability === 'unavailable')
-      throw new Error(`Unsupported or unavailable project setting ${key}`);
-    const allowed = definition.allowedValues;
-    if (allowed && definition.valueType !== 'string_set' && !allowed.includes(value))
-      throw new Error(`Unsupported value for project setting ${key}`);
-    if (definition.valueType === 'number' && !Number.isInteger(value))
-      throw new Error(`${key} must be an integer`);
-    if (definition.valueType === 'boolean' && typeof value !== 'boolean')
-      throw new Error(`${key} must be boolean`);
-    if (definition.valueType === 'string_set' && (!Array.isArray(value) || value.length === 0 || value.some((entry) => !allowed?.includes(entry))))
-      throw new Error(`${key} must contain supported values`);
-  }
+  validateProjectSettings(settings);
   const idleMinutes = Number(settings['session.idle_timeout_minutes'] ?? 10080);
   const idle = idleMinutes === 0 ? Number(process.env.JWT_REFRESH_EXPIRATION ?? 2592000) : idleMinutes * 60;
   const access = Number(process.env.JWT_ACCESS_EXPIRATION ?? 900);

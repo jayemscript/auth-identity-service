@@ -47,7 +47,8 @@ export class AddPolicyCatalog1796000000000 implements MigrationInterface {
       INSERT INTO system.policy_allowed_values(policy_key,value)
       SELECT 'account.approval', value FROM jsonb_array_elements('["auto_approve","email_verification","admin_approval"]') value;
       INSERT INTO system.policy_allowed_values(policy_key,value)
-      SELECT 'auth.methods', value FROM jsonb_array_elements('["password","magic_link","passkey","oauth"]') value;
+      SELECT 'auth.methods', method.value
+      FROM jsonb_array_elements('["password","magic_link","passkey","oauth"]'::jsonb) AS method(value);
       INSERT INTO system.policy_allowed_values(policy_key,value)
       SELECT 'session.overflow_policy', value FROM jsonb_array_elements('["block_new","evict_oldest","evict_least_active"]') value;
       INSERT INTO system.policy_allowed_values(policy_key,value)

@@ -38,7 +38,7 @@ export const POLICY_DEFINITIONS: readonly PolicyDefinition[] = [
   },
   {
     key: 'auth.methods',
-    // Catalog only: authentication currently uses password credentials.
+    // These are selectable catalog values. Runtime support currently covers password only.
     valueType: 'string_set',
     scope: 'both',
     defaultValue: ['password'],
