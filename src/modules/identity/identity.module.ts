@@ -11,9 +11,11 @@ import { AdminAccessController } from './controllers/admin-access.controller';
 import { ManageAccessService } from './services/manage-access.service';
 import { UserAccessRepository } from './repositories/user-access.repository';
 import { PolicyModule } from '../policies';
+import { SecurityModule } from '../security';
+import { EventsModule } from '../events/events.module';
 
 @Module({
-  imports: [JwtModule.register({}), PolicyModule],
+  imports: [JwtModule.register({}), PolicyModule, SecurityModule, EventsModule],
   controllers: [
     RegistrationController,
     AppAccessController,

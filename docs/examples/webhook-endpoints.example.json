@@ -1,0 +1,21 @@
+{
+  "apps": [
+    {
+      "appSlug": "public-ecommerce-web",
+      "endpoints": [
+        {
+          "key": "primary-events",
+          "url": "https://webhook.example.com/auth-events",
+          "secretRef": "secret-manager://public-ecommerce-web/webhook-signing-key",
+          "subscriptions": [
+            "user.created",
+            "user.app_access.granted",
+            "user.app_access.revoked",
+            "session.created",
+            "session.revoked"
+          ]
+        }
+      ]
+    }
+  ]
+}

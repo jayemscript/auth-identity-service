@@ -1,6 +1,6 @@
 # Postman API guide
 
-These files document the V1 HTTP API so it can be called directly from Postman without a consumer application. Import the service’s Postman environment values below, then follow the workflow in order.
+These files document the client-facing V1 HTTP API so a consuming backend can call it directly. Import the service’s Postman environment values below, then follow the workflow in order. Internal module services, database tables, and developer-only commands are not API endpoints.
 
 ## Environment values
 
@@ -34,6 +34,10 @@ Issue separate credentials for `merchant-bff`, `customer-bff`, and the internal 
 
 The server’s Swagger UI is available at `{{baseUrl}}/docs` when `SWAGGER_ENABLED=true`. Better Auth’s internal routes are not part of this API and are not mounted.
 
+The supported webhook event names, their triggers, and payload fields are listed in [Events and webhook subscriptions](./07-events-and-webhooks.md).
+
+The login and registration security behavior, lockout responses, and rule-denial codes are covered in [Security controls](./08-security-controls.md). Audit logs, login-attempt records, and security-event records have no client-facing read endpoints.
+
 ## Endpoints
 
 | Method      | Path                                                      | Auth                                                      |
@@ -55,3 +59,9 @@ The server’s Swagger UI is available at `{{baseUrl}}/docs` when `SWAGGER_ENABL
 | PATCH       | `/v1/admin/users/:userId/config`                          | API key + SuperAdmin access token                         |
 | GET         | `/v1/admin/apps/:appId/users/:userId/sessions`            | API key + SuperAdmin access token                         |
 | GET, DELETE | `/v1/admin/apps/:appId/users/:userId/sessions/:sessionId` | API key + SuperAdmin access token                         |
+
+## Feature notes
+
+Security policies and rules apply to the existing `/v1/auth/login`, `/v1/registration/public`, and `/v1/registration/internal` routes. They do not add client endpoints for rule management, audit-log queries, or lockout administration.
+
+Identity changes publish app-scoped events and queue matching webhook delivery records. Webhook endpoints and subscriptions are provisioned by developers. This release does not send outbound webhook requests or expose event and delivery query endpoints. See [Events and webhook subscriptions](./07-events-and-webhooks.md) for the event catalog and current delivery status.

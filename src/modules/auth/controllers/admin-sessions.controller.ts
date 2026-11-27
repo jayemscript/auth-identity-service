@@ -1,4 +1,5 @@
-import { Controller, Delete, Get, Param, UseGuards } from '@nestjs/common';
+import { Controller, Delete, Get, Param, Req, UseGuards } from '@nestjs/common';
+import type { Request } from 'express';
 import { SuperAdminGuard } from '../guards/superadmin.guard';
 import { ApiKeyGuard } from '../guards/api-key.guard';
 import { AdminSessionsService } from '../services/admin-sessions.service';
@@ -29,6 +30,7 @@ export class AdminSessionsController {
   @Delete(':sessionId')
   @RequireAppScopes('sessions:revoke')
   async revoke(
+    @Req() request: Request & { identity?: { userId: string } },
     @Param('appId') appId: string,
     @Param('userId') userId: string,
     @Param('sessionId') sessionId: string,
@@ -38,6 +40,7 @@ export class AdminSessionsController {
       userId,
       sessionId,
       revoke: true,
+      actorId: request.identity?.userId,
     });
     const revoked = Boolean((result as { revoked?: boolean }).revoked);
     return successResponse(
