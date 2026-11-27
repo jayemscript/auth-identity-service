@@ -1,98 +1,53 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Auth Identity Service
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+Headless NestJS authentication and identity API for registered applications. Better Auth handles credential accounts and framework sessions; this service issues app-bound tokens, manages sessions and grants, and verifies backend credentials.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Install and configure
 
-## Description
+Requirements: Node.js, pnpm, and PostgreSQL.
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
-
-## Project setup
-
-```bash
-$ pnpm install
+```sh
+pnpm install
+cp .env.example .env
 ```
 
-## Compile and run the project
+Set the PostgreSQL connection values in `.env` (`DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASS`, `DB_NAME`, and `DB_SSL`). Generate real values for `BETTER_AUTH_SECRET`, `JWT_SECRET`, `API_KEY`, `SUPERADMINPASSWORD`, and `MOCK_USERS_PASSWORD` before bootstrapping. `API_KEY` is the shared key for `GET /health`; `/v1` routes use app credentials instead. `DB_ENV=local` is required by the local E2E test safety check.
 
-```bash
-# development
-$ pnpm run start
+## Migrate, bootstrap, and run
 
-# watch mode
-$ pnpm run start:dev
+Apply the TypeORM migrations, then load the example apps, SuperAdmin, and mock users:
 
-# production mode
-$ pnpm run start:prod
+```sh
+make run_migration
+make bootstrap SEED_FILE=docs/examples/bootstrap.seed.example.json
+make dev
 ```
 
-## Run tests
+Set `SUPERADMINEMAIL`, `SUPERADMINPASSWORD`, and `MOCK_USERS_PASSWORD` in `.env` first. To use your own seed, copy and edit the example JSON, then pass its path to `SEED_FILE`. App slugs, names, client types, and policies are immutable after insertion; add a new app as a new seed entry with a new slug. Use `make project-settings SETTINGS_FILE=docs/examples/project-settings.example.json` to set deployment defaults.
 
-```bash
-# unit tests
-$ pnpm run test
+## Issue a credential for a client backend
 
-# e2e tests
-$ pnpm run test:e2e
+Issue a separate credential for each consuming backend. Use the exact app slug from the bootstrap seed and grant only the scopes that backend needs:
 
-# test coverage
-$ pnpm run test:cov
+```sh
+make issue-app-credential APP_SLUG=public-ecommerce-web CREDENTIAL_NAME=client-backend SCOPES=auth:login,tokens:verify,tokens:refresh,users:register,sessions:read:self,sessions:revoke:self
 ```
 
-## Deployment
+The command prints the credential once as `<credential-id>.<secret>`. Store it in the backend’s private secret configuration and never in a browser or mobile app. Revoke it with `make revoke-app-credential APP_SLUG=public-ecommerce-web CREDENTIAL_ID=<credential-id>`.
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+Example consuming backend configuration:
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ pnpm install -g @nestjs/mau
-$ mau deploy
+```dotenv
+AUTH_SERVICE_URL=http://localhost:7000
+AUTH_SERVICE_HEALTH_URL=http://localhost:7000/health
+AUTH_SERVICE_APP_ID=public-ecommerce-web
+AUTH_SERVICE_INTERNAL_API_KEY=<same value as the auth service API_KEY>
+AUTH_CREDENTIAL_KEY=<credential-id>.<secret>
+AUTH_SERVICE_TIMEOUT_MS=10000
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+For `/v1` requests, send `AUTH_CREDENTIAL_KEY` as `X-API-Key` and `AUTH_SERVICE_APP_ID` as `X-App-Id`. `AUTH_SERVICE_INTERNAL_API_KEY` is the shared auth-service `API_KEY` and only authorizes `/health`; it does not authorize `/v1` requests. If the backend does not call `/health`, it does not need that setting.
 
-## Resources
+## API documentation and tests
 
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+The Postman-oriented endpoint guide is in [`docs/api/README.md`](docs/api/README.md), with request details in the Markdown files in `docs/api/`. Run local-only end-to-end tests with `make test-e2e`; use `make test-e2e-serial` or `make test-e2e-file FILE=test/e2e/auth-jwks.e2e-spec.ts` to narrow a run. The suite requires `DB_ENV=local`, a local database, migrations and bootstrap, and a running API.
