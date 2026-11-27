@@ -11,7 +11,7 @@ pnpm install
 cp .env.example .env
 ```
 
-Set the PostgreSQL connection values in `.env` (`DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASS`, `DB_NAME`, and `DB_SSL`). Generate real values for `BETTER_AUTH_SECRET`, `JWT_SECRET`, `API_KEY`, `SUPERADMINPASSWORD`, and `MOCK_USERS_PASSWORD` before bootstrapping. `API_KEY` is the shared key for `GET /health`; `/v1` routes use app credentials instead. `DB_ENV=local` is required by the local E2E test safety check.
+Set the PostgreSQL connection values in `.env` (`DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASS`, `DB_NAME`, and `DB_SSL`). Generate real values for `BETTER_AUTH_SECRET`, `JWT_SECRET`, `API_KEY`, `LOGIN_SUBJECT_HMAC_SECRET`, `SUPERADMINPASSWORD`, and `MOCK_USERS_PASSWORD` before bootstrapping. Set `DEVICE_ID_HMAC_SECRET` to a separate generated secret if login requests use `deviceId`. `API_KEY` is the shared key for `GET /health`; `/v1` routes use app credentials instead. `DB_ENV=local` is required by the local E2E test safety check.
 
 ## Migrate, bootstrap, and run
 

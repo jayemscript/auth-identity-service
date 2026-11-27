@@ -52,7 +52,7 @@ export const POLICY_DEFINITIONS: readonly PolicyDefinition[] = [
     valueType: 'string',
     scope: 'both',
     defaultValue: 'any',
-    availability: 'unavailable',
+    availability: 'available',
     allowedValues: ['totp', 'sms', 'email_otp', 'webauthn_passkey', 'any'],
   },
   {
@@ -60,7 +60,7 @@ export const POLICY_DEFINITIONS: readonly PolicyDefinition[] = [
     valueType: 'number',
     scope: 'both',
     defaultValue: 7,
-    availability: 'unavailable',
+    availability: 'available',
     allowedValues: [3, 7, 14, 30],
   },
   {
@@ -68,7 +68,7 @@ export const POLICY_DEFINITIONS: readonly PolicyDefinition[] = [
     valueType: 'number',
     scope: 'both',
     defaultValue: 0,
-    availability: 'unavailable',
+    availability: 'available',
     allowedValues: [0, 7, 30, 90],
   },
   {
@@ -76,7 +76,7 @@ export const POLICY_DEFINITIONS: readonly PolicyDefinition[] = [
     valueType: 'string',
     scope: 'deployment',
     defaultValue: 'off',
-    availability: 'unavailable',
+    availability: 'available',
     allowedValues: ['off', 'admin_actions', 'billing_and_security', 'always'],
   },
   {
@@ -100,14 +100,13 @@ export const POLICY_DEFINITIONS: readonly PolicyDefinition[] = [
     scope: 'both',
     defaultValue: 10080,
     availability: 'available',
-    allowedValues: [0, 15, 30, 60, 10080],
   },
   {
     key: 'session.ip_binding',
     valueType: 'string',
     scope: 'both',
     defaultValue: 'off',
-    availability: 'unavailable',
+    availability: 'available',
     allowedValues: ['off', 'warn_on_change', 'strict_revoke'],
   },
   {
@@ -121,17 +120,17 @@ export const POLICY_DEFINITIONS: readonly PolicyDefinition[] = [
   {
     key: 'risk.lockout_threshold',
     valueType: 'number',
-    scope: 'deployment',
+    scope: 'both',
     defaultValue: 0,
-    availability: 'unavailable',
+    availability: 'available',
     allowedValues: [0, 3, 5, 10],
   },
   {
     key: 'risk.lockout_duration_minutes',
     valueType: 'string',
-    scope: 'deployment',
+    scope: 'both',
     defaultValue: '15',
-    availability: 'unavailable',
+    availability: 'available',
     allowedValues: ['5', '15', '60', 'until_admin_unlock'],
   },
   {
@@ -139,7 +138,7 @@ export const POLICY_DEFINITIONS: readonly PolicyDefinition[] = [
     valueType: 'string',
     scope: 'both',
     defaultValue: 'off',
-    availability: 'unavailable',
+    availability: 'available',
     allowedValues: ['off', 'after_failed_attempts', 'suspicious_ip', 'always'],
   },
   {
@@ -147,7 +146,7 @@ export const POLICY_DEFINITIONS: readonly PolicyDefinition[] = [
     valueType: 'string',
     scope: 'both',
     defaultValue: 'off',
-    availability: 'unavailable',
+    availability: 'available',
     allowedValues: ['off', 'notify_email', 'require_mfa', 'block'],
   },
   {

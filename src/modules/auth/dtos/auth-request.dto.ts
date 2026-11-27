@@ -3,6 +3,7 @@ import {
   IsIn,
   IsInt,
   IsOptional,
+  Matches,
   IsString,
   Max,
   MaxLength,
@@ -20,6 +21,11 @@ export class LoginRequestDto {
   @MinLength(1)
   @MaxLength(128)
   password!: string;
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^[A-Za-z0-9_-]{22,128}$/)
+  deviceId?: string;
 }
 
 export class VerifyTokenRequestDto {

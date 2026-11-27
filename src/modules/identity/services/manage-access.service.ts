@@ -7,12 +7,16 @@ import {
 import { DataSource } from 'typeorm';
 import { UserAccessRepository } from '../repositories/user-access.repository';
 import { UserConfigResponseDto } from '../dtos';
+import { AuditLogService } from '../../security';
+import { PublishDomainEventService } from '../../events/services';
 
 @Injectable()
 export class ManageAccessService {
   constructor(
     private readonly dataSource: DataSource,
     private readonly userAccess: UserAccessRepository,
+    private readonly audit: AuditLogService,
+    private readonly events: PublishDomainEventService,
   ) {}
 
   async execute(input: {
@@ -30,7 +34,8 @@ export class ManageAccessService {
         body.sessionLimitOverride < 1
       )
         throw new ConflictException('The session limit must be at least one.');
-      const rows = await this.dataSource.query(
+      const rows = await this.dataSource.transaction(async (tx) => {
+        const changed = await tx.query(
         `UPDATE identity.user_configs SET can_create_users = COALESCE($2, can_create_users),
           session_limit_override = CASE WHEN $3::boolean THEN $4::integer ELSE session_limit_override END
          WHERE user_id = $1 RETURNING user_id, can_create_users, session_limit_override`,
@@ -40,7 +45,10 @@ export class ManageAccessService {
           body.sessionLimitOverride !== undefined,
           body.sessionLimitOverride ?? null,
         ],
-      );
+        );
+        if (changed.length) await this.audit.execute(tx, { actorUserId: input.actorId, targetUserId: input.userId, action: 'user.config.updated', changes: { canCreateUsers: changed[0].can_create_users, sessionLimitOverride: changed[0].session_limit_override } });
+        return changed;
+      });
       if (!rows.length)
         throw new NotFoundException(
           'We could not find settings for this user.',
@@ -79,11 +87,18 @@ export class ManageAccessService {
         `UPDATE identity.user_application_access SET status = 'revoked', revoked_at = now() WHERE user_id = $1 AND application_id = $2 AND status = 'active' RETURNING id`,
         [input.userId, app.id],
       );
-      if (grant.length)
-        await tx.query(
-          `UPDATE auth.sessions SET revoked_at = now() WHERE user_id = $1 AND application_id = $2 AND revoked_at IS NULL`,
+      if (grant.length) {
+        const sessions = await tx.query(
+          `UPDATE auth.sessions SET revoked_at = now(), updated_at = now() WHERE user_id = $1 AND application_id = $2 AND revoked_at IS NULL RETURNING id`,
           [input.userId, app.id],
         );
+        await this.audit.execute(tx, { applicationId: app.id, actorUserId: input.actorId, targetUserId: input.userId, action: 'user.app_access.revoked' });
+        await this.events.execute(tx, { applicationId: app.id, eventType: 'user.app_access.revoked', aggregateType: 'user', aggregateId: input.userId, payload: { userId: input.userId } });
+        for (const session of sessions) {
+          await this.audit.execute(tx, { applicationId: app.id, actorUserId: input.actorId, targetUserId: input.userId, action: 'session.revoked', changes: { sessionId: session.id, reason: 'app_access_revoked' } });
+          await this.events.execute(tx, { applicationId: app.id, eventType: 'session.revoked', aggregateType: 'session', aggregateId: session.id, payload: { userId: input.userId, sessionId: session.id, reason: 'app_access_revoked' } });
+        }
+      }
       return { revoked: grant.length > 0 };
     });
   }

@@ -34,6 +34,8 @@ Issue separate credentials for `merchant-bff`, `customer-bff`, and the internal 
 
 The server’s Swagger UI is available at `{{baseUrl}}/docs` when `SWAGGER_ENABLED=true`. Better Auth’s internal routes are not part of this API and are not mounted.
 
+The supported webhook event names, their triggers, and payload fields are listed in [Events and webhook subscriptions](./07-events-and-webhooks.md).
+
 ## Endpoints
 
 | Method      | Path                                                      | Auth                                                      |

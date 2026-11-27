@@ -9,6 +9,8 @@ import { auth } from '../../../auth/better-auth';
 import { withBetterAuthTransaction } from '../../../common/database';
 import { PolicyResolverService } from '../../policies';
 import { RegistrationResponseDto } from '../dtos';
+import { SecurityRulesService, AuditLogService } from '../../security';
+import { PublishDomainEventService } from '../../events/services';
 
 export interface RegisterUserInput {
   name: string;
@@ -20,6 +22,7 @@ export interface RegisterUserInput {
   source: 'public_registration' | 'operator';
   actorId?: string;
   appSlug: string;
+  ipAddress?: string;
 }
 
 function isDuplicateIdentityError(error: unknown): boolean {
@@ -51,6 +54,9 @@ export class RegisterUserService {
   constructor(
     private readonly dataSource: DataSource,
     private readonly policyResolver: PolicyResolverService,
+    private readonly securityRules: SecurityRulesService,
+    private readonly auditLog: AuditLogService,
+    private readonly publishEvent: PublishDomainEventService,
   ) {}
 
   async execute(input: RegisterUserInput): Promise<RegistrationResponseDto> {
@@ -64,6 +70,9 @@ export class RegisterUserService {
         'This app could not be found or is currently unavailable.',
       );
     const policy = await this.policyResolver.execute(manager, app[0].id);
+    if (input.ipAddress)
+      await this.securityRules.checkIp(manager, { applicationId: app[0].id, ipAddress: input.ipAddress, operation: 'registration' });
+    await this.securityRules.checkEmailDomain(manager, { applicationId: app[0].id, email: input.email });
     const mode = policy['registration.mode'];
     if (
       mode === 'disabled' ||
@@ -140,6 +149,9 @@ export class RegisterUserService {
             input.actorId ?? null,
           ],
         );
+        await this.auditLog.execute(tx, { applicationId: app[0].id, actorUserId: input.actorId, targetUserId: created.user.id, action: 'user.created', changes: { source: input.source } });
+        await this.publishEvent.execute(tx, { applicationId: app[0].id, eventType: 'user.created', aggregateType: 'user', aggregateId: created.user.id, payload: { userId: created.user.id, source: input.source } });
+        await this.publishEvent.execute(tx, { applicationId: app[0].id, eventType: 'user.app_access.granted', aggregateType: 'user', aggregateId: created.user.id, payload: { userId: created.user.id, source: input.source } });
         return Object.assign(new RegistrationResponseDto(), {
           userId: created.user.id,
         });

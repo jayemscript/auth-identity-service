@@ -18,7 +18,7 @@ export class SuperAdminGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest<Request>();
+    const request = context.switchToHttp().getRequest<Request & { identity?: { userId: string; sessionId: string; appId: string } }>();
     const token = request.header('authorization')?.replace(/^Bearer\s+/i, '');
     const appSlug = request.header('x-app-id');
     if (!token || !appSlug)
@@ -63,6 +63,7 @@ export class SuperAdminGuard implements CanActivate {
       throw new ForbiddenException(
         'This account is not allowed to manage the service. Sign in with a SuperAdmin account.',
       );
+    request.identity = { userId: claims.sub, sessionId: claims.sid, appId: appSlug };
     return true;
   }
 }

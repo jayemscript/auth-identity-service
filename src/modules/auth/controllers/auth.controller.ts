@@ -42,6 +42,7 @@ export class AuthController {
     const { userName, ...tokens } = await this.login.execute({
       ...body,
       appId,
+      ipAddress: request.ip,
     });
     return successResponse(`Welcome, ${userName}! You are signed in.`, tokens);
   }

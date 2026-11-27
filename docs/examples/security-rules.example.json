@@ -1,0 +1,25 @@
+{
+  "apps": [
+    {
+      "appSlug": "public-ecommerce-web",
+      "ipRules": [
+        {
+          "type": "block",
+          "operation": "login",
+          "network": "192.0.2.0/24"
+        },
+        {
+          "type": "block",
+          "operation": "registration",
+          "network": "198.51.100.0/24"
+        }
+      ],
+      "emailDomainRules": [
+        {
+          "type": "block",
+          "domain": "disposable.example"
+        }
+      ]
+    }
+  ]
+}

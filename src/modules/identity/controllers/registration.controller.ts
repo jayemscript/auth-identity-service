@@ -19,6 +19,7 @@ export class RegistrationController {
       ...body,
       source: 'public_registration',
       appSlug: request.header('x-app-id') ?? '',
+      ipAddress: request.ip,
     });
     return successResponse(
       'Your account was created. You can now sign in to this app.',
@@ -38,6 +39,7 @@ export class RegistrationController {
       source: 'operator',
       actorId: request.identity?.userId,
       appSlug: request.identity?.appId ?? '',
+      ipAddress: request.ip,
     });
     return successResponse('The account was created successfully.', result);
   }

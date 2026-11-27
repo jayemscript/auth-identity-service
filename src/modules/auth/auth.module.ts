@@ -14,9 +14,11 @@ import { AdminSessionsService } from './services/admin-sessions.service';
 import { SuperAdminGuard } from './guards/superadmin.guard';
 import { JwksController } from './controllers/jwks.controller';
 import { PolicyModule } from '../policies';
+import { SecurityModule } from '../security';
+import { EventsModule } from '../events/events.module';
 
 @Module({
-  imports: [JwtModule.register({}), PolicyModule],
+  imports: [JwtModule.register({}), PolicyModule, SecurityModule, EventsModule],
   controllers: [AuthController, SessionsController, AdminSessionsController, JwksController],
   providers: [
     ApiKeyGuard,
