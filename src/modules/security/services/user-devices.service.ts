@@ -24,9 +24,11 @@ export class UserDevicesService {
     );
     if (created) return { deviceId: created.id, isNew: true };
     const [existing] = await manager.query(
-      `UPDATE security.user_devices SET last_seen_at = now()
-       WHERE application_id = $1 AND user_id = $2 AND device_hash = decode($3, 'hex')
-       RETURNING id`,
+      `WITH updated AS (
+        UPDATE security.user_devices SET last_seen_at = now()
+        WHERE application_id = $1 AND user_id = $2 AND device_hash = decode($3, 'hex')
+        RETURNING id
+      ) SELECT id FROM updated`,
       [input.applicationId, input.userId, deviceHash],
     );
     return { deviceId: existing.id, isNew: false };

@@ -36,9 +36,10 @@ export class ManageAccessService {
         throw new ConflictException('The session limit must be at least one.');
       const rows = await this.dataSource.transaction(async (tx) => {
         const changed = await tx.query(
-        `UPDATE identity.user_configs SET can_create_users = COALESCE($2, can_create_users),
+        `WITH changed AS (UPDATE identity.user_configs SET can_create_users = COALESCE($2, can_create_users),
           session_limit_override = CASE WHEN $3::boolean THEN $4::integer ELSE session_limit_override END
-         WHERE user_id = $1 RETURNING user_id, can_create_users, session_limit_override`,
+         WHERE user_id = $1 RETURNING user_id, can_create_users, session_limit_override)
+         SELECT * FROM changed`,
         [
           input.userId,
           body.canCreateUsers ?? null,
@@ -84,12 +85,14 @@ export class ManageAccessService {
           'The SuperAdmin account must keep access to the admin app.',
         );
       const grant = await tx.query(
-        `UPDATE identity.user_application_access SET status = 'revoked', revoked_at = now() WHERE user_id = $1 AND application_id = $2 AND status = 'active' RETURNING id`,
+        `WITH revoked AS (UPDATE identity.user_application_access SET status = 'revoked', revoked_at = now() WHERE user_id = $1 AND application_id = $2 AND status = 'active' RETURNING id)
+         SELECT id FROM revoked`,
         [input.userId, app.id],
       );
       if (grant.length) {
         const sessions = await tx.query(
-          `UPDATE auth.sessions SET revoked_at = now(), updated_at = now() WHERE user_id = $1 AND application_id = $2 AND revoked_at IS NULL RETURNING id`,
+          `WITH revoked AS (UPDATE auth.sessions SET revoked_at = now(), updated_at = now() WHERE user_id = $1 AND application_id = $2 AND revoked_at IS NULL RETURNING id)
+           SELECT id FROM revoked`,
           [input.userId, app.id],
         );
         await this.audit.execute(tx, { applicationId: app.id, actorUserId: input.actorId, targetUserId: input.userId, action: 'user.app_access.revoked' });

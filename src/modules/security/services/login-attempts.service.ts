@@ -33,8 +33,12 @@ export class LoginAttemptsService {
       `SELECT count(*)::int AS count FROM security.login_attempts
        WHERE application_id = $1 AND subject_hash = decode($2, 'hex')
          AND succeeded = false AND attempted_at >= now() - interval '15 minutes'
-         AND attempted_at > COALESCE((SELECT max(success.attempted_at) FROM security.login_attempts success
-           WHERE success.application_id = $1 AND success.subject_hash = decode($2, 'hex') AND success.succeeded), '-infinity')`,
+         AND attempted_at > GREATEST(
+           COALESCE((SELECT max(success.attempted_at) FROM security.login_attempts success
+             WHERE success.application_id = $1 AND success.subject_hash = decode($2, 'hex') AND success.succeeded), '-infinity'),
+           COALESCE((SELECT max(lockout.created_at) FROM security.account_lockouts lockout
+             WHERE lockout.application_id = $1 AND lockout.subject_hash = decode($2, 'hex')), '-infinity')
+         )`,
       [input.applicationId, input.identifierHash],
     );
     if (Number(count?.count ?? 0) < input.threshold) return false;

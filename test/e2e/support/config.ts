@@ -21,6 +21,9 @@ export interface E2EConfig {
   publicAppSlug: string;
   adminAppSlug: string;
   alternateAppSlug: string;
+  securityAppSlug: string;
+  lockoutAppSlug: string;
+  eventAppSlug: string;
   superAdminEmail: string;
   superAdminPassword: string;
 }
@@ -118,6 +121,9 @@ export function parseAndValidateEnv(content: string, envFile = '.env'): E2EConfi
     alternateAppSlug: (values.E2E_ALTERNATE_APP_SLUG ?? 'mobile-app')
       .trim()
       .toLowerCase(),
+    securityAppSlug: `e2e-security-${runTag}`,
+    lockoutAppSlug: `e2e-lockout-${runTag}`,
+    eventAppSlug: `e2e-events-${runTag}`,
     superAdminEmail: values.SUPERADMINEMAIL?.trim() ?? '',
     superAdminPassword: values.SUPERADMINPASSWORD ?? '',
   };

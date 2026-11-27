@@ -15,6 +15,9 @@ async function setup(): Promise<void> {
     config.publicAppSlug,
     config.adminAppSlug,
     config.alternateAppSlug,
+    config.securityAppSlug,
+    config.lockoutAppSlug,
+    config.eventAppSlug,
   ];
   await client.connect();
   try {
@@ -30,6 +33,17 @@ async function setup(): Promise<void> {
           'apps.application_credentials',
           'apps.application_credential_scopes',
           'auth.jwks',
+          'security.audit_logs',
+          'security.security_events',
+          'security.login_attempts',
+          'security.account_lockouts',
+          'security.ip_rules',
+          'security.email_domain_rules',
+          'security.user_devices',
+          'events.event_catalog',
+          'events.domain_events',
+          'events.webhook_endpoints',
+          'events.webhook_deliveries',
         ],
       ],
     );
@@ -50,6 +64,8 @@ async function setup(): Promise<void> {
         'E2E tests stopped: apply the bootstrap seed before running API tests.',
       );
     }
+
+    await provisionFixtureApps(client, config);
 
     const apps = await client.query<{ slug: string }>(
       `SELECT slug::text AS slug FROM apps.applications
@@ -72,6 +88,24 @@ async function setup(): Promise<void> {
   try {
     await cleanupClient.query('BEGIN');
     try {
+      const fixtureSlugs = [config.securityAppSlug, config.lockoutAppSlug, config.eventAppSlug];
+      const fixtureApps = await cleanupClient.query<{ id: string }>(
+        'SELECT id FROM apps.applications WHERE slug = ANY($1::text[])',
+        [fixtureSlugs],
+      );
+      const fixtureIds = fixtureApps.rows.map(({ id }) => id);
+      if (fixtureIds.length) {
+        await cleanupClient.query('DELETE FROM events.webhook_deliveries WHERE application_id = ANY($1::uuid[])', [fixtureIds]);
+        await cleanupClient.query('DELETE FROM auth.sessions WHERE application_id = ANY($1::uuid[])', [fixtureIds]);
+        await cleanupClient.query('DELETE FROM events.domain_events WHERE application_id = ANY($1::uuid[])', [fixtureIds]);
+        await cleanupClient.query('DELETE FROM events.webhook_endpoints WHERE application_id = ANY($1::uuid[])', [fixtureIds]);
+        await cleanupClient.query('DELETE FROM security.ip_rules WHERE application_id = ANY($1::uuid[])', [fixtureIds]);
+        await cleanupClient.query('DELETE FROM security.email_domain_rules WHERE application_id = ANY($1::uuid[])', [fixtureIds]);
+        await cleanupClient.query('DELETE FROM security.account_lockouts WHERE application_id = ANY($1::uuid[])', [fixtureIds]);
+        await cleanupClient.query('DELETE FROM security.login_attempts WHERE application_id = ANY($1::uuid[])', [fixtureIds]);
+        await cleanupClient.query('DELETE FROM security.user_devices WHERE application_id = ANY($1::uuid[])', [fixtureIds]);
+        await cleanupClient.query('DELETE FROM security.security_events WHERE application_id = ANY($1::uuid[])', [fixtureIds]);
+      }
       await cleanupClient.query(
         `DELETE FROM identity.users WHERE email::text ILIKE $1`,
         [`e2e-${config.runTag}-%@example.test`],
@@ -116,6 +150,48 @@ async function setup(): Promise<void> {
     await provisionCredentials(setupClient, config, requiredSlugs);
   } finally {
     await setupClient.end();
+  }
+}
+
+async function provisionFixtureApps(
+  client: Client,
+  config: ReturnType<typeof readE2EConfig>,
+): Promise<void> {
+  await client.query('BEGIN');
+  try {
+    const apps = [
+      { slug: config.securityAppSlug, name: 'E2E Security Rules', clientType: 'test', threshold: 0 },
+      { slug: config.lockoutAppSlug, name: 'E2E Login Lockouts', clientType: 'test', threshold: 3 },
+      { slug: config.eventAppSlug, name: 'E2E Event Outbox', clientType: 'test', threshold: 0 },
+    ];
+    for (const app of apps) {
+      const existing = await client.query('SELECT 1 FROM apps.applications WHERE slug = $1', [app.slug]);
+      if (existing.rowCount) continue;
+      const id = await client.query<{ id: string }>('SELECT gen_random_uuid() AS id');
+      const applicationId = id.rows[0].id;
+      const policy = {
+        'registration.mode': 'public',
+        'account.approval': 'auto_approve',
+        'email_verification.required': false,
+        'session.max_concurrent': 20,
+        'session.idle_timeout_minutes': 10080,
+        'risk.lockout_threshold': app.threshold,
+        'risk.lockout_duration_minutes': '5',
+      };
+      for (const [key, value] of Object.entries(policy))
+        await client.query(
+          'INSERT INTO apps.application_policy_entries(application_id,key,value) VALUES ($1,$2,$3::jsonb)',
+          [applicationId, key, JSON.stringify(value)],
+        );
+      await client.query(
+        'INSERT INTO apps.applications(id,slug,name,client_type) VALUES ($1,$2,$3,$4)',
+        [applicationId, app.slug, app.name, app.clientType],
+      );
+    }
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
   }
 }
 
